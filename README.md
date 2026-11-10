@@ -76,8 +76,28 @@ qualsiasi stringa univoca, ad esempio l'ID restituito dalla ricerca di Open-Mete
 ## Privacy
 
 L'app non ha server propri: tutto avviene nel browser. Le località salvate e i dati in cache
-restano nel `localStorage` del dispositivo. Le uniche richieste esterne sono verso le API di
-Open-Meteo (previsioni e ricerca località) e Google Fonts (caratteri tipografici).
+restano nel `localStorage` del dispositivo. Le richieste esterne sono verso le API di
+Open-Meteo (previsioni e ricerca località), Google Fonts (caratteri tipografici) e, se attivato,
+GoatCounter (contatore visite).
+
+## Statistiche visite
+
+Il sito può contare le visite con [GoatCounter](https://www.goatcounter.com), un servizio
+gratuito e rispettoso della privacy: non usa cookie e non raccoglie dati personali.
+
+Per attivarlo:
+
+1. Crea un account gratuito su <https://www.goatcounter.com> e scegli un nome per il sito
+   (ad esempio `meteo`, che diventa `meteo.goatcounter.com`).
+2. In `index.html` imposta quel nome nella costante `GOATCOUNTER`:
+
+   ```js
+   const GOATCOUNTER = 'meteo';
+   ```
+
+3. Le visite si vedono nella dashboard su `https://<nome>.goatcounter.com`.
+
+Le visite fatte aprendo il file in locale o da `localhost` non vengono contate.
 
 ## Crediti
 

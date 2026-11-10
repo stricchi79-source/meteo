@@ -317,6 +317,18 @@ document.addEventListener('visibilitychange', ()=>{
   if(!c || Date.now()-c._fetched > 600000) load();
 });
 load();
+
+/* ---- Contatore visite (GoatCounter, senza cookie) ----
+   Inserisci qui il nome del tuo sito GoatCounter (es. 'meteo' per meteo.goatcounter.com).
+   Lascia vuoto per disattivare il contatore. Non conta le visite aperte in locale. */
+const GOATCOUNTER = '';
+if(GOATCOUNTER && location.protocol.startsWith('http') && !/^(localhost|127\.)/.test(location.hostname)){
+  const gc = document.createElement('script');
+  gc.async = true;
+  gc.src = 'https://gc.zgo.at/count.js';
+  gc.dataset.goatcounter = 'https://'+GOATCOUNTER+'.goatcounter.com/count';
+  document.body.appendChild(gc);
+}
 </script>
 </body>
 </html>

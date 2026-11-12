@@ -116,6 +116,24 @@ e riavvia Claude Desktop.
 
 ## Problemi comuni
 
+- **Windows dice "offline" ma la stampante è accesa** (tipico della M28w con porta WSD,
+  soprattutto dopo il risparmio energetico):
+  - Rimedio veloce: dal telefono chiedi *"rimetti in linea la stampante"*.
+  - Soluzione definitiva:
+    1. Dai alla stampante un **IP fisso** dal router.
+    2. Apri PowerShell **come amministratore**, sostituisci l'IP e lancia:
+       ```powershell
+       $ip = '192.168.1.50'
+       $p = Get-Printer | Where-Object Name -like '*M28*' | Select-Object -First 1
+       Add-PrinterPort -Name "IP_$ip" -PrinterHostAddress $ip -ErrorAction SilentlyContinue
+       Set-Printer -Name $p.Name -PortName "IP_$ip"
+       ```
+       Così Windows parla con la stampante direttamente via IP invece che con WSD. Funziona
+       anche il controllo del toner, senza impostare `STAMPANTE_IP`.
+    3. Se ancora risulta offline: Pannello di controllo → Dispositivi e stampanti → tasto destro
+       sulla M28w → Proprietà stampante → Porte → Configura porta → togli la spunta a
+       **"Stato SNMP abilitato"**.
+
 - **"Stampante non trovata"**: chiedi prima *"che stampanti ho?"* e usa quel nome.
 - **I PDF non escono**: installa SumatraPDF, oppure indica dove si trova con la variabile
   d'ambiente `SUMATRA_PATH`.

@@ -172,7 +172,7 @@ def _stampa(percorso: Path, stampante: str, copie: int,
 def elenca_stampanti() -> str:
     """Elenca le stampanti installate sul PC, indicando la predefinita e lo stato."""
     out = _powershell(
-        "@(Get-CimInstance Win32_Printer | Select-Object Name, Default, WorkOffline, "
+        "@(Get-CimInstance Win32_Printer | Select-Object Name, Default, WorkOffline, PortName, "
         "@{n='Stato';e={$_.PrinterStatus}}) | ConvertTo-Json -Compress"
     )
     stampanti = json.loads(out or "[]")
@@ -183,10 +183,42 @@ def elenca_stampanti() -> str:
     righe = []
     for s in stampanti:
         stato = stati.get(s.get("Stato"), str(s.get("Stato")))
-        if s.get("WorkOffline"):
-            stato = "offline"
+        if s.get("WorkOffline") or s.get("Stato") == 7:
+            stato = "offline secondo Windows"
+            if str(s.get("PortName", "")).upper().startswith("WSD"):
+                stato += (" (porta WSD: spesso non è vero, ad es. dopo il risparmio energetico; "
+                          "usa 'rimetti_in_linea')")
         righe.append(f"- {s['Name']}{' (predefinita)' if s.get('Default') else ''}: {stato}")
     return "\n".join(righe) or "Nessuna stampante trovata."
+
+
+@mcp.tool()
+def rimetti_in_linea(stampante: str | None = None) -> str:
+    """Toglie il blocco 'offline' che Windows mette alla stampante (frequente con le
+    porte WSD), così i lavori in coda ripartono. Vuoto = stampante predefinita."""
+    nome = _risolvi_stampante(stampante)
+    try:
+        _powershell(
+            "Set-StrictMode -Off; "
+            "$p = Get-CimInstance Win32_Printer | Where-Object { $_.Name -eq $env:SM_PRN }; "
+            "if ($p.WorkOffline) { $p | Set-CimInstance -Property @{ WorkOffline = $false } }",
+            env={"SM_PRN": nome},
+        )
+    except RuntimeError as e:
+        return (f"Non sono riuscito a rimettere in linea '{nome}': {e}. "
+                "Soluzione definitiva: usare una porta TCP/IP standard con IP fisso (vedi README).")
+    out = _powershell(
+        "Set-StrictMode -Off; "
+        "$p = Get-CimInstance Win32_Printer | Where-Object { $_.Name -eq $env:SM_PRN }; "
+        "@{ off = [bool]$p.WorkOffline; coda = @(Get-PrintJob -PrinterName $env:SM_PRN "
+        "-ErrorAction SilentlyContinue).Count } | ConvertTo-Json -Compress",
+        env={"SM_PRN": nome},
+    )
+    st = json.loads(out or "{}")
+    if st.get("off"):
+        return (f"Windows considera ancora '{nome}' offline. Controlla che la stampante sia "
+                "accesa e in Wi-Fi; se succede spesso passa alla porta TCP/IP standard (vedi README).")
+    return f"'{nome}' è di nuovo in linea. Lavori in coda: {st.get('coda', 0)}."
 
 
 @mcp.tool()
@@ -389,11 +421,12 @@ def _ip_stampante(stampante: str | None) -> str:
         return os.environ["STAMPANTE_IP"]
     nome = _risolvi_stampante(stampante)
     ip = _powershell(
-        "$p = Get-Printer -Name $env:SM_PRN; "
+        "Set-StrictMode -Off; $p = Get-Printer -Name $env:SM_PRN; "
         "$porta = Get-PrinterPort -Name $p.PortName -ErrorAction SilentlyContinue; "
-        "if ($porta.PrinterHostAddress) { $porta.PrinterHostAddress } "
-        "elseif ($porta.PrinterHostIP) { $porta.PrinterHostIP } "
-        "elseif ($p.PortName -match '^(IP_)?(\\d+\\.\\d+\\.\\d+\\.\\d+)') { $Matches[2] }",
+        "$ip = $null; foreach ($n in 'PrinterHostAddress','PrinterHostIP') { "
+        "  if (-not $ip -and $porta -and $porta.PSObject.Properties[$n]) { $ip = $porta.$n } }; "
+        "if (-not $ip -and $p.PortName -match '(\\d+\\.\\d+\\.\\d+\\.\\d+)') { $ip = $Matches[1] }; "
+        "$ip",
         env={"SM_PRN": nome},
     )
     if not ip:

@@ -82,6 +82,11 @@ h2{font:600 12px/1 var(--f-body);letter-spacing:.1em;text-transform:uppercase;co
 
 .sun{display:flex;justify-content:space-between;color:var(--muted);font:500 13px var(--f-mono)}
 .foot{color:var(--muted);font-size:12px;text-align:center}
+.install{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.install[hidden]{display:none}
+.install img{width:36px;height:36px;border-radius:9px}
+.install span{flex:1;font-size:14px}
+.install button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:9px 16px;font-weight:600;cursor:pointer}
 .foot a{color:inherit}
 .msg{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;color:var(--muted)}
 
@@ -104,6 +109,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="place" id="placeBtn" aria-label="Cambia località"><b id="placeName">Stazione Meteo</b><small id="updated">—</small></button>
     <button class="icon-btn" id="refreshBtn" aria-label="Aggiorna"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
   </div>
+  <div class="install" id="installBar" hidden><img src="icons/icon-192.png" alt=""><span>Installa Meteo sul telefono</span><button type="button" id="installBtn">Installa</button></div>
   <div id="content"><div class="msg">Caricamento…</div></div>
   <div class="foot">Dati <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · tocca il nome per cambiare località</div>
 </main>
@@ -337,6 +343,18 @@ if(GOATCOUNTER && location.protocol.startsWith('http') && !/^(localhost|127\.)/.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
+/* Pulsante "Installa": apre direttamente la finestra di installazione di Chrome */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); installEvt = e; $('#installBar').hidden = false;
+});
+$('#installBtn').addEventListener('click', async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  await installEvt.userChoice.catch(() => {});
+  installEvt = null; $('#installBar').hidden = true;
+});
+window.addEventListener('appinstalled', () => { $('#installBar').hidden = true; });
 </script>
 </body>
 </html>

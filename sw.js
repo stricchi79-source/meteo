@@ -1,6 +1,6 @@
 // Service worker: rende l'app installabile e la fa aprire anche senza rete.
 // I dati meteo restano gestiti dalla pagina (cache in localStorage).
-const CACHE = 'meteo-v1';
+const CACHE = 'meteo-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 

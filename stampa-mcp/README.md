@@ -18,6 +18,14 @@ Prima di ogni stampa ti chiede **conferma sul telefono**.
 Opzioni: stampante (anche solo parte del nome; se manca usa la predefinita), copie (1–20),
 fronte/retro e bianco/nero (questi due solo per i PDF stampati con SumatraPDF).
 
+### Nota per HP LaserJet Pro MFP M28 (M28a / M28w)
+
+- È una **laser in bianco e nero**: l'opzione bianco/nero non serve.
+- **Non ha il fronte/retro automatico**: `fronte_retro` non ha effetto. Per stamparlo serve
+  girare il foglio a mano.
+- Funziona sia collegata via USB (M28a) sia in Wi-Fi (M28w): basta che Windows la veda e che sia
+  installato il driver HP ("HP LaserJet Pro MFP M28-M31").
+
 ## Installazione sul PC di casa (una volta sola)
 
 1. **Python 3.10+** da <https://www.python.org/downloads/>. Durante l'installazione spunta

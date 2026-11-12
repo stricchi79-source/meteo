@@ -40,7 +40,18 @@ fronte/retro e bianco/nero (questi due solo per i PDF stampati con SumatraPDF).
   Se non risponde, apri il pannello web della stampante (scrivi il suo IP nel browser) e controlla
   che SNMP v1/v2 sia attivo in Rete → SNMP.
 
-## Installazione sul PC di casa (una volta sola)
+## Installazione automatica (consigliata)
+
+Sul PC apri **PowerShell**, incolla questa riga e premi invio:
+
+```powershell
+irm https://raw.githubusercontent.com/stricchi79-source/meteo/main/stampa-mcp/installa.ps1 | iex
+```
+
+Lo script installa Python, SumatraPDF, il server e Claude Code, cerca la stampante e crea
+sul Desktop l'icona **"Stampa da telefono"**. Poi scrivi `claude` una volta per fare l'accesso.
+
+## Installazione manuale (una volta sola)
 
 1. **Python 3.10+** da <https://www.python.org/downloads/>. Durante l'installazione spunta
    **"Add python.exe to PATH"**.

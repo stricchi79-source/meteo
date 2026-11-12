@@ -1,8 +1,8 @@
 # Installazione automatica di stampa-mcp su Windows.
-# Uso (PowerShell):  irm https://raw.githubusercontent.com/stricchi79-source/meteo/ccr-13173981-rfc8hu/stampa-mcp/installa.ps1 | iex
+# Uso (PowerShell):  irm https://raw.githubusercontent.com/stricchi79-source/meteo/main/stampa-mcp/installa.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
-$Ramo = 'ccr-13173981-rfc8hu'
+$Ramo = 'main'
 $Dest = Join-Path $env:USERPROFILE 'stampa-mcp'
 
 function Passo($t) { Write-Host "`n== $t" -ForegroundColor Cyan }

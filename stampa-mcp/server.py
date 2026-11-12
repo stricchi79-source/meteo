@@ -25,7 +25,45 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("stampante")
+MODO_HTTP = "--http" in sys.argv or os.environ.get("STAMPA_MODO") == "http"
+PORTA_HTTP = int(os.environ.get("STAMPA_PORTA", "8765"))
+CARTELLA_BASE = Path(__file__).resolve().parent
+# In modalità HTTP (connettore remoto) i file stampabili sono solo quelli in questa cartella.
+CARTELLA_CONSENTITA = Path(
+    os.environ.get("STAMPA_CARTELLA_CONSENTITA", Path.home() / "Stampa")
+).resolve()
+
+
+def _token() -> str:
+    """Token segreto che fa parte dell'URL del connettore (chi non lo conosce non entra)."""
+    t = os.environ.get("STAMPA_TOKEN")
+    if t:
+        return t
+    f = CARTELLA_BASE / "token.txt"
+    if f.is_file() and f.read_text().strip():
+        return f.read_text().strip()
+    import secrets
+    t = secrets.token_urlsafe(24)
+    f.write_text(t)
+    return t
+
+
+if MODO_HTTP:
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    TOKEN = _token()
+    mcp = FastMCP(
+        "stampante",
+        host="127.0.0.1",          # raggiungibile solo dal tunnel sullo stesso PC
+        port=PORTA_HTTP,
+        streamable_http_path=f"/{TOKEN}/mcp",
+        stateless_http=True,
+        # Il tunnel inoltra richieste con l'Host pubblico (es. *.ts.net): la protezione
+        # anti DNS-rebinding per localhost le rifiuterebbe. L'accesso è protetto dal token.
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
+else:
+    mcp = FastMCP("stampante")
 
 # Cartella dove salvare i file scaricati da URL.
 CARTELLA_DOWNLOAD = Path(
@@ -233,10 +271,34 @@ def stampa_file(percorso: str, stampante: str | None = None, copie: int = 1,
         fronte_retro: stampa fronte/retro (solo PDF con SumatraPDF).
         bianco_nero: stampa in bianco e nero (solo PDF con SumatraPDF).
     """
+    if MODO_HTTP and not os.path.isabs(os.path.expandvars(os.path.expanduser(percorso))):
+        percorso = str(CARTELLA_CONSENTITA / percorso)
     p = Path(os.path.expandvars(os.path.expanduser(percorso))).resolve()
+    if MODO_HTTP and not p.is_relative_to(CARTELLA_CONSENTITA):
+        raise RuntimeError(
+            f"Da connettore remoto si possono stampare solo i file in {CARTELLA_CONSENTITA}. "
+            "Indica il nome del file (es. 'bolletta.pdf').")
     if not p.is_file():
         raise RuntimeError(f"File non trovato: {p}")
     return _stampa(p, _risolvi_stampante(stampante), copie, fronte_retro, bianco_nero)
+
+
+def _verifica_host_pubblico(url: str) -> None:
+    import ipaddress
+    import socket
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise RuntimeError("Sono ammessi solo link http o https.")
+    for info in socket.getaddrinfo(parsed.hostname, parsed.port or 443):
+        ip = ipaddress.ip_address(info[4][0])
+        if not ip.is_global:
+            raise RuntimeError("Da connettore remoto non si possono scaricare indirizzi della rete locale.")
+
+
+class _RedirectSicuro(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _verifica_host_pubblico(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 @mcp.tool()
@@ -250,7 +312,10 @@ def stampa_da_url(url: str, stampante: str | None = None, copie: int = 1,
     CARTELLA_DOWNLOAD.mkdir(parents=True, exist_ok=True)
 
     req = urllib.request.Request(url, headers={"User-Agent": "stampa-mcp/1.0"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    if MODO_HTTP:
+        _verifica_host_pubblico(url)
+    apri = urllib.request.build_opener(_RedirectSicuro).open if MODO_HTTP else urllib.request.urlopen
+    with apri(req, timeout=60) as r:
         nome = Path(urllib.parse.unquote(parsed.path)).name or "documento"
         tipo = r.headers.get_content_type()
         if not Path(nome).suffix:
@@ -521,4 +586,10 @@ def stato_stampante(stampante: str | None = None, ip: str | None = None) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    if MODO_HTTP:
+        print(f"Server HTTP su http://127.0.0.1:{PORTA_HTTP}/{TOKEN}/mcp", file=sys.stderr)
+        print(f"File stampabili da remoto: {CARTELLA_CONSENTITA}", file=sys.stderr)
+        CARTELLA_CONSENTITA.mkdir(parents=True, exist_ok=True)
+        mcp.run(transport="streamable-http")
+    else:
+        mcp.run()

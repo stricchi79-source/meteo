@@ -104,6 +104,34 @@ Se usi l'app Claude Desktop sul PC, aggiungi il server in
 
 e riavvia Claude Desktop.
 
+## Connettore personalizzato su claude.ai (da qualsiasi chat)
+
+Così la stampante si usa da **qualsiasi chat** di claude.ai o dell'app Claude, non solo dalla
+sessione Code del PC. Il server gira in modalità HTTP e viene pubblicato in HTTPS con
+**Tailscale Funnel**, gratuito e con indirizzo fisso.
+
+1. Doppio clic su **"Connettore stampante (claude.ai)"** sul Desktop. In alternativa: tasto
+   destro su `avvia-connettore.ps1` → *Esegui con PowerShell*.
+   - La prima volta installa Tailscale e ti chiede di accedere (account gratuito).
+   - Può anche chiederti di aprire un link per abilitare **HTTPS e Funnel**: fallo e rilancia lo script.
+2. Lo script avvia il server, lo pubblica, **verifica che risponda** e mostra l'URL, del tipo
+   `https://nome-pc.tuo-tailnet.ts.net/<token-segreto>/mcp`, già copiato negli appunti.
+3. Su claude.ai vai in **Impostazioni → Connettori → Aggiungi connettore personalizzato**,
+   incolla l'URL e lascia vuoti i campi OAuth.
+4. In una chat attiva il connettore "stampante" e chiedi, ad esempio, *"stampa bolletta.pdf"*.
+
+Da connettore remoto valgono queste regole di sicurezza:
+- Si stampano **solo i file nella cartella `Stampa`** della tua cartella utente. Mettici i file
+  (ad esempio sincronizzandola con OneDrive o Google Drive dal telefono).
+- `stampa_da_url` non può scaricare indirizzi della rete di casa.
+- L'URL contiene un **token segreto**: chi non lo conosce riceve "404". Non condividerlo. Per
+  cambiarlo cancella `token.txt` e rilancia lo script, poi aggiorna l'URL su claude.ai.
+- Il server ascolta solo su `127.0.0.1`: da Internet si raggiunge esclusivamente tramite il tunnel.
+- Per spegnere tutto: `tailscale funnel reset` e chiudi la finestra Python.
+
+Il PC deve restare acceso. I connettori personalizzati sono disponibili solo con alcuni piani
+di claude.ai.
+
 ## Sicurezza
 
 - Il server **non apre porte** su Internet: comunica solo con Claude sul PC (stdio). Il

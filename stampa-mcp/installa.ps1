@@ -99,6 +99,11 @@ try {
     $s.TargetPath = Join-Path $Dest 'avvia-da-telefono.bat'
     $s.WorkingDirectory = $Dest
     $s.Save()
+    $c = $sh.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Connettore stampante (claude.ai).lnk'))
+    $c.TargetPath = 'powershell.exe'
+    $c.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$(Join-Path $Dest 'avvia-connettore.ps1')`""
+    $c.WorkingDirectory = $Dest
+    $c.Save()
 } catch {
     Write-Host "Collegamento non creato: usa avvia-da-telefono.bat nella cartella $Dest" -ForegroundColor Yellow
 }

@@ -389,11 +389,12 @@ def _ip_stampante(stampante: str | None) -> str:
         return os.environ["STAMPANTE_IP"]
     nome = _risolvi_stampante(stampante)
     ip = _powershell(
-        "$p = Get-Printer -Name $env:SM_PRN; "
+        "Set-StrictMode -Off; $p = Get-Printer -Name $env:SM_PRN; "
         "$porta = Get-PrinterPort -Name $p.PortName -ErrorAction SilentlyContinue; "
-        "if ($porta.PrinterHostAddress) { $porta.PrinterHostAddress } "
-        "elseif ($porta.PrinterHostIP) { $porta.PrinterHostIP } "
-        "elseif ($p.PortName -match '^(IP_)?(\\d+\\.\\d+\\.\\d+\\.\\d+)') { $Matches[2] }",
+        "$ip = $null; foreach ($n in 'PrinterHostAddress','PrinterHostIP') { "
+        "  if (-not $ip -and $porta -and $porta.PSObject.Properties[$n]) { $ip = $porta.$n } }; "
+        "if (-not $ip -and $p.PortName -match '(\\d+\\.\\d+\\.\\d+\\.\\d+)') { $ip = $Matches[1] }; "
+        "$ip",
         env={"SM_PRN": nome},
     )
     if not ip:

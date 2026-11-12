@@ -1,10 +1,17 @@
 # Installazione automatica di stampa-mcp su Windows.
-# Uso (PowerShell):  irm https://raw.githubusercontent.com/stricchi79-source/meteo/main/stampa-mcp/installa.ps1 | iex
+# Uso (PowerShell):  si puo' rilanciare senza problemi.
+#  irm https://raw.githubusercontent.com/stricchi79-source/meteo/main/stampa-mcp/installa.ps1 | iex
 
+Set-StrictMode -Off
 $ErrorActionPreference = 'Stop'
 $Ramo = 'main'
 $Dest = Join-Path $env:USERPROFILE 'stampa-mcp'
 
+function Prop($o, $nome) {
+    # Legge una proprieta' solo se esiste (le porte WSD non hanno l'indirizzo IP)
+    if ($o -and $o.PSObject.Properties[$nome]) { return $o.$nome }
+    return $null
+}
 function Passo($t) { Write-Host "`n== $t" -ForegroundColor Cyan }
 function AggiornaPath {
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
@@ -65,29 +72,43 @@ Passo 'Stampanti trovate'
 Get-CimInstance Win32_Printer | ForEach-Object {
     $_.Name + $(if ($_.Default) { '   (predefinita)' } else { '' })
 }
-$m28 = Get-CimInstance Win32_Printer | Where-Object Name -like '*M28*' | Select-Object -First 1
-if ($m28) {
-    $porta = Get-PrinterPort -Name $m28.PortName -ErrorAction SilentlyContinue
-    $ip = if ($porta.PrinterHostAddress) { $porta.PrinterHostAddress } else { $porta.PrinterHostIP }
-    Write-Host "`nHP M28 trovata: $($m28.Name)" -ForegroundColor Green
-    if ($ip) { Write-Host "Indirizzo IP: $ip" } else {
-        Write-Host 'IP non ricavabile dalla porta (WSD): per il livello toner leggi l''IP in HP Smart e mettilo in .mcp.json (vedi README).' -ForegroundColor Yellow
+$m28 = $null
+try {
+    $m28 = Get-CimInstance Win32_Printer | Where-Object { $_.Name -like '*M28*' } | Select-Object -First 1
+    if ($m28) {
+        Write-Host "`nHP M28 trovata: $($m28.Name)  (porta: $($m28.PortName))" -ForegroundColor Green
+        $porta = Get-PrinterPort -Name $m28.PortName -ErrorAction SilentlyContinue
+        $ip = Prop $porta 'PrinterHostAddress'
+        if (-not $ip) { $ip = Prop $porta 'PrinterHostIP' }
+        if (-not $ip -and $m28.PortName -match '(\d+\.\d+\.\d+\.\d+)') { $ip = $Matches[1] }
+        if ($ip) { Write-Host "Indirizzo IP: $ip" } else {
+            Write-Host 'Porta WSD: la stampa funziona lo stesso. Per il livello toner serve l''IP (vedi README).' -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "`nNessuna stampante 'M28' trovata in Windows: aggiungila da Impostazioni > Stampanti e scanner." -ForegroundColor Yellow
     }
-} else {
-    Write-Host "`nNessuna stampante 'M28' trovata in Windows: aggiungila da Impostazioni > Stampanti e scanner." -ForegroundColor Yellow
+} catch {
+    Write-Host "Controllo stampante saltato: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
 Passo 'Collegamento sul Desktop'
 $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Stampa da telefono.lnk'
-$sh = New-Object -ComObject WScript.Shell
-$s = $sh.CreateShortcut($lnk)
-$s.TargetPath = Join-Path $Dest 'avvia-da-telefono.bat'
-$s.WorkingDirectory = $Dest
-$s.Save()
+try {
+    $sh = New-Object -ComObject WScript.Shell
+    $s = $sh.CreateShortcut($lnk)
+    $s.TargetPath = Join-Path $Dest 'avvia-da-telefono.bat'
+    $s.WorkingDirectory = $Dest
+    $s.Save()
+} catch {
+    Write-Host "Collegamento non creato: usa avvia-da-telefono.bat nella cartella $Dest" -ForegroundColor Yellow
+}
 
 if ($m28 -and (Read-Host "`nStampo una pagina di prova sulla M28? (s/n)") -eq 's') {
-    "Prova stampa-mcp - $(Get-Date)`nSe leggi questo foglio, il PC stampa correttamente." |
-        Out-Printer -Name $m28.Name
+    try {
+        "Prova stampa-mcp - $(Get-Date)`nSe leggi questo foglio, il PC stampa correttamente." |
+            Out-Printer -Name $m28.Name
+        Write-Host 'Pagina di prova inviata.' -ForegroundColor Green
+    } catch { Write-Host "Stampa di prova non riuscita: $($_.Exception.Message)" -ForegroundColor Yellow }
 }
 
 Write-Host "`nFatto!" -ForegroundColor Green

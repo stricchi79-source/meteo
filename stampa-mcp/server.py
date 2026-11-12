@@ -275,5 +275,217 @@ def annulla_stampe(stampante: str | None = None) -> str:
     return f"Coda di '{nome}' svuotata."
 
 
+# --------------------------------------------------------------------------- #
+# Stato stampante via SNMP (stampanti di rete, es. HP M28w in Wi-Fi)
+# --------------------------------------------------------------------------- #
+
+def _ber_len(n: int) -> bytes:
+    if n < 0x80:
+        return bytes([n])
+    b = n.to_bytes((n.bit_length() + 7) // 8, "big")
+    return bytes([0x80 | len(b)]) + b
+
+
+def _ber(tag: int, payload: bytes) -> bytes:
+    return bytes([tag]) + _ber_len(len(payload)) + payload
+
+
+def _ber_int(v: int) -> bytes:
+    return _ber(0x02, v.to_bytes(max(1, (v.bit_length() + 8) // 8), "big", signed=True))
+
+
+def _ber_oid(oid: str) -> bytes:
+    parti = [int(x) for x in oid.strip(".").split(".")]
+    out = bytearray([parti[0] * 40 + parti[1]])
+    for p in parti[2:]:
+        chunk = [p & 0x7F]
+        p >>= 7
+        while p:
+            chunk.append(0x80 | (p & 0x7F))
+            p >>= 7
+        out.extend(reversed(chunk))
+    return _ber(0x06, bytes(out))
+
+
+def _ber_leggi(data: bytes, i: int) -> tuple[int, bytes, int]:
+    """Legge un elemento TLV: restituisce (tag, valore, indice successivo)."""
+    tag = data[i]
+    n = data[i + 1]
+    i += 2
+    if n & 0x80:
+        k = n & 0x7F
+        n = int.from_bytes(data[i:i + k], "big")
+        i += k
+    return tag, data[i:i + n], i + n
+
+
+def _decodifica_oid(b: bytes) -> str:
+    parti = [b[0] // 40, b[0] % 40]
+    v = 0
+    for x in b[1:]:
+        v = (v << 7) | (x & 0x7F)
+        if not x & 0x80:
+            parti.append(v)
+            v = 0
+    return ".".join(map(str, parti))
+
+
+def _snmp_get(host: str, oids: list[str], community: str = "public",
+              timeout: float = 3.0) -> dict[str, object]:
+    """SNMP v1 GET minimale, senza librerie esterne."""
+    import random
+    import socket
+
+    req_id = random.randint(1, 2**30)
+    varbinds = b"".join(_ber(0x30, _ber_oid(o) + b"\x05\x00") for o in oids)
+    pdu = _ber(0xA0, _ber_int(req_id) + _ber_int(0) + _ber_int(0) + _ber(0x30, varbinds))
+    msg = _ber(0x30, _ber_int(0) + _ber(0x04, community.encode()) + pdu)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.settimeout(timeout)
+        for _ in range(2):
+            s.sendto(msg, (host, 161))
+            try:
+                data, _ = s.recvfrom(65535)
+                break
+            except socket.timeout:
+                continue
+        else:
+            raise RuntimeError(
+                f"La stampante {host} non risponde (SNMP). È accesa e in rete? "
+                "SNMP è attivo nel suo pannello web (Rete > SNMP)?")
+
+    _, msg_body, _ = _ber_leggi(data, 0)
+    i = 0
+    for _ in range(2):  # versione, community
+        _, _, i = _ber_leggi(msg_body, i)
+    _, pdu_body, _ = _ber_leggi(msg_body, i)
+    j = 0
+    _, _, j = _ber_leggi(pdu_body, j)          # request id
+    _, err, j = _ber_leggi(pdu_body, j)        # error status
+    _, _, j = _ber_leggi(pdu_body, j)          # error index
+    _, vbl, _ = _ber_leggi(pdu_body, j)
+
+    risultati: dict[str, object] = {}
+    k = 0
+    while k < len(vbl):
+        _, vb, k = _ber_leggi(vbl, k)
+        _, oid_b, m = _ber_leggi(vb, 0)
+        tag, val, _ = _ber_leggi(vb, m)
+        oid = _decodifica_oid(oid_b)
+        if tag in (0x02, 0x41, 0x42, 0x43):
+            risultati[oid] = int.from_bytes(val, "big", signed=(tag == 0x02))
+        elif tag == 0x04:
+            risultati[oid] = val
+        else:
+            risultati[oid] = None
+    if int.from_bytes(err, "big"):
+        raise ValueError("La stampante ha rifiutato la richiesta SNMP (dato non disponibile).")
+    return risultati
+
+
+def _ip_stampante(stampante: str | None) -> str:
+    if os.environ.get("STAMPANTE_IP"):
+        return os.environ["STAMPANTE_IP"]
+    nome = _risolvi_stampante(stampante)
+    ip = _powershell(
+        "$p = Get-Printer -Name $env:SM_PRN; "
+        "$porta = Get-PrinterPort -Name $p.PortName -ErrorAction SilentlyContinue; "
+        "if ($porta.PrinterHostAddress) { $porta.PrinterHostAddress } "
+        "elseif ($porta.PrinterHostIP) { $porta.PrinterHostIP } "
+        "elseif ($p.PortName -match '^(IP_)?(\\d+\\.\\d+\\.\\d+\\.\\d+)') { $Matches[2] }",
+        env={"SM_PRN": nome},
+    )
+    if not ip:
+        raise RuntimeError(
+            f"Non trovo l'indirizzo IP di '{nome}' (probabilmente è collegata con porta WSD). "
+            "Indica il parametro 'ip' (lo trovi nell'app HP Smart o stampando il report di "
+            "configurazione) oppure imposta la variabile d'ambiente STAMPANTE_IP.")
+    return ip
+
+
+OID_DESCRIZIONE = "1.3.6.1.2.1.25.3.2.1.3.1"
+OID_STATO = "1.3.6.1.2.1.25.3.5.1.1.1"
+OID_ERRORI = "1.3.6.1.2.1.25.3.5.1.2.1"
+OID_PAGINE = "1.3.6.1.2.1.43.10.2.1.4.1.1"
+OID_CONS_NOME = "1.3.6.1.2.1.43.11.1.1.6.1.{}"
+OID_CONS_MAX = "1.3.6.1.2.1.43.11.1.1.8.1.{}"
+OID_CONS_LIV = "1.3.6.1.2.1.43.11.1.1.9.1.{}"
+
+ERRORI_STAMPANTE = [  # bit di hrPrinterDetectedErrorState (dal più significativo)
+    "carta in esaurimento", "carta esaurita", "toner in esaurimento", "toner esaurito",
+    "sportello aperto", "carta inceppata", "offline", "richiede assistenza",
+    "vassoio di ingresso mancante", "vassoio di uscita mancante",
+    "materiale di consumo mancante", "vassoio di uscita quasi pieno",
+    "vassoio di uscita pieno", "vassoio di ingresso vuoto", "manutenzione in ritardo",
+]
+
+
+@mcp.tool()
+def stato_stampante(stampante: str | None = None, ip: str | None = None) -> str:
+    """Controlla una stampante di rete (es. HP M28w in Wi-Fi): livello toner,
+    stato, errori (carta, inceppamenti, sportello) e pagine stampate in totale.
+
+    Args:
+        stampante: nome della stampante su Windows (vuoto = predefinita), usato per trovarne l'IP.
+        ip: indirizzo IP della stampante, se lo conosci (ha la precedenza).
+    """
+    host = ip or _ip_stampante(stampante)
+    oids = [OID_DESCRIZIONE, OID_STATO, OID_ERRORI, OID_PAGINE]
+    for n in (1, 2):
+        oids += [OID_CONS_NOME.format(n), OID_CONS_MAX.format(n), OID_CONS_LIV.format(n)]
+    try:
+        r = _snmp_get(host, oids)
+    except ValueError:
+        # In SNMP v1 basta un dato mancante (es. secondo consumabile) per far
+        # rifiutare tutta la richiesta: chiedo i dati uno alla volta.
+        r = {}
+        for o in oids:
+            try:
+                r.update(_snmp_get(host, [o]))
+            except ValueError:
+                pass
+
+    righe = []
+    descr = r.get(OID_DESCRIZIONE)
+    if isinstance(descr, bytes):
+        righe.append(f"Stampante: {descr.decode(errors='replace').strip()} ({host})")
+    else:
+        righe.append(f"Stampante: {host}")
+
+    stato = {1: "altro", 2: "sconosciuto", 3: "pronta", 4: "in stampa", 5: "in riscaldamento"}
+    righe.append(f"Stato: {stato.get(r.get(OID_STATO), 'sconosciuto')}")
+
+    err = r.get(OID_ERRORI)
+    problemi = []
+    if isinstance(err, bytes) and err:
+        bits = int.from_bytes(err, "big")
+        totale = len(err) * 8
+        problemi = [nome for i, nome in enumerate(ERRORI_STAMPANTE)
+                    if i < totale and bits & (1 << (totale - 1 - i))]
+    righe.append("Avvisi: " + (", ".join(problemi) if problemi else "nessuno"))
+
+    for n in (1, 2):
+        nome = r.get(OID_CONS_NOME.format(n))
+        liv = r.get(OID_CONS_LIV.format(n))
+        mx = r.get(OID_CONS_MAX.format(n))
+        if not isinstance(nome, bytes) or not isinstance(liv, int):
+            continue
+        nome_s = nome.decode(errors="replace").strip()
+        if isinstance(mx, int) and mx > 0 and liv >= 0:
+            pct = round(liv * 100 / mx)
+            barra = "█" * (pct // 10) + "░" * (10 - pct // 10)
+            righe.append(f"{nome_s}: {barra} {pct}%")
+        elif liv == -3:
+            righe.append(f"{nome_s}: presente (livello non disponibile)")
+        else:
+            righe.append(f"{nome_s}: livello sconosciuto")
+
+    pagine = r.get(OID_PAGINE)
+    if isinstance(pagine, int):
+        righe.append(f"Pagine stampate in totale: {pagine}")
+    return "\n".join(righe)
+
+
 if __name__ == "__main__":
     mcp.run()

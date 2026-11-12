@@ -14,6 +14,7 @@ Prima di ogni stampa ti chiede **conferma sul telefono**.
 | `stampa_testo` | Stampa del testo (una nota, una lista…) |
 | `coda_di_stampa` | Mostra i lavori in coda |
 | `annulla_stampe` | Svuota la coda |
+| `stato_stampante` | Livello toner, avvisi (carta, inceppamento, sportello) e pagine stampate (stampanti in Wi-Fi/rete, es. M28w) |
 
 Opzioni: stampante (anche solo parte del nome; se manca usa la predefinita), copie (1–20),
 fronte/retro e bianco/nero (questi due solo per i PDF stampati con SumatraPDF).
@@ -25,6 +26,19 @@ fronte/retro e bianco/nero (questi due solo per i PDF stampati con SumatraPDF).
   girare il foglio a mano.
 - Funziona sia collegata via USB (M28a) sia in Wi-Fi (M28w): basta che Windows la veda e che sia
   installato il driver HP ("HP LaserJet Pro MFP M28-M31").
+- **Livello del toner (solo M28w in Wi-Fi)**: chiedi *"come sta la stampante?"* oppure
+  *"quanto toner resta?"*. Il server interroga la stampante in rete con SNMP, che sulle HP è
+  attivo di serie. Se Windows la usa con una porta "WSD", il server non ne trova l'indirizzo IP
+  da solo. In quel caso:
+  1. Leggi l'IP nell'app HP Smart, oppure stampa il report di configurazione tenendo premuto il
+     tasto Wi-Fi/Info.
+  2. Assegna alla stampante un IP fisso dal router (consigliato).
+  3. Aggiungi l'IP in `.mcp.json`:
+     ```json
+     "env": { "STAMPANTE_IP": "192.168.1.50" }
+     ```
+  Se non risponde, apri il pannello web della stampante (scrivi il suo IP nel browser) e controlla
+  che SNMP v1/v2 sia attivo in Rete → SNMP.
 
 ## Installazione sul PC di casa (una volta sola)
 

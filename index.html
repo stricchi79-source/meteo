@@ -8,6 +8,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Meteo">
 <title>Stazione Meteo</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap">
 <style>
@@ -328,6 +331,11 @@ if(GOATCOUNTER && location.protocol.startsWith('http') && !/^(localhost|127\.)/.
   gc.src = 'https://gc.zgo.at/count.js';
   gc.dataset.goatcounter = 'https://'+GOATCOUNTER+'.goatcounter.com/count';
   document.body.appendChild(gc);
+}
+
+/* ---- Installazione come app (service worker) ---- */
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
 </script>
 </body>

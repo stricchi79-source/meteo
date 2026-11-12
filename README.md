@@ -48,12 +48,17 @@ cd meteo
 4. Dopo un paio di minuti l'app sarà disponibile su
    `https://stricchi79-source.github.io/meteo/`.
 
-### Aggiungerla alla schermata Home del telefono
+### Installarla sul telefono
 
-- **iPhone (Safari)**: apri il sito, tocca *Condividi* → *Aggiungi alla schermata Home*.
-- **Android (Chrome)**: apri il sito, menu ⋮ → *Aggiungi a schermata Home*.
+L'app va aperta dall'indirizzo online (GitHub Pages, `https://...`): **non si installa
+aprendo il file `index.html` scaricato sul telefono**.
 
-L'app si aprirà a schermo intero come un'applicazione normale.
+- **Android (Chrome)**: apri `https://stricchi79-source.github.io/meteo/`, menu ⋮ →
+  *Installa app* (o *Aggiungi a schermata Home* → *Installa*).
+- **iPhone (Safari)**: apri il sito **con Safari** (non con Chrome o dall'anteprima di un'altra app),
+  tocca *Condividi* → *Aggiungi alla schermata Home*.
+
+L'app si aprirà a schermo intero come un'applicazione normale e si avvia anche senza rete.
 
 ## Uso quotidiano
 

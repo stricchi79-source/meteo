@@ -1,6 +1,6 @@
 // Service worker: rende l'app installabile e la fa aprire anche senza rete.
 // I dati meteo restano gestiti dalla pagina (cache in localStorage).
-const CACHE = 'meteo-v2';
+const CACHE = 'meteo-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
@@ -18,8 +18,9 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   // Prima la rete (così gli aggiornamenti arrivano subito), poi la copia salvata.
+  // 'no-cache' scavalca la cache HTTP del browser (GitHub Pages la tiene 10 minuti).
   e.respondWith(
-    fetch(req).then(res => {
+    fetch(req, {cache: 'no-cache'}).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))

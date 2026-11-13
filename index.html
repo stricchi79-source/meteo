@@ -12,33 +12,75 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: strumento da polso — lettura principale grande in alto, poi strumenti in griglia, poi 24 ore e 7 giorni */
 :root{
-  --bg:#eef2f5; --panel:#ffffff; --fg:#14202b; --muted:#5d6b78; --line:#d6dee5;
+  --bg:#eef2f5; --panel:rgba(255,255,255,.86); --panel-solid:#ffffff; --fg:#14202b; --muted:#5d6b78; --line:#d6dee5;
   --accent:#1f6fb2; --warm:#d0702a; --cold:#2f86c9; --rain:#2a7fbf;
-  --f-display:"Space Grotesk",system-ui,sans-serif;
-  --f-body:"IBM Plex Sans",system-ui,sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  /* Un solo font in tutta l'app; cifre tabellari ovunque */
+  --f:"Space Grotesk",system-ui,sans-serif;
+  /* Cielo animato */
+  --sky-day:#9fd0f3; --sky-night:#aab4cc; --sky-over:#cfd8e0; --sky-over-n:#b4bdca;
+  --sky-rain:#b7c6d4; --sky-rain-n:#a3afbf; --sky-snow:#e3eaf1; --sky-snow-n:#c5cedb; --sky-storm:#a9b1c0; --sky-storm-n:#949cad;
+  --cloud-l:rgba(255,255,255,.55); --cloud-d:rgba(120,135,150,.22);
+  --sun-core:rgba(255,214,140,.7); --sun-glow:rgba(255,200,120,.25); --flash:#ffffff;
+  --p-rain:40,95,150; --p-snow:110,135,165; --p-star:255,255,255;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0f1a24; --panel:#17242f; --fg:#e6edf3; --muted:#8fa0af; --line:#25343f;
+  --bg:#0f1a24; --panel:rgba(23,36,47,.86); --panel-solid:#17242f; --fg:#e6edf3; --muted:#8fa0af; --line:#25343f;
   --accent:#5aa9e6; --warm:#f0995a; --cold:#6cb6ee; --rain:#5aa9e6; color-scheme:dark;
+  --sky-day:#1d5682; --sky-night:#050a17; --sky-over:#2a3946; --sky-over-n:#121b25;
+  --sky-rain:#1c2b38; --sky-rain-n:#0b131c; --sky-snow:#34485a; --sky-snow-n:#18222e; --sky-storm:#1a1d2e; --sky-storm-n:#0c0e18;
+  --cloud-l:rgba(190,210,228,.10); --cloud-d:rgba(150,170,190,.16);
+  --sun-core:rgba(255,196,120,.38); --sun-glow:rgba(255,170,90,.12); --flash:#d2e1ff;
+  --p-rain:160,195,235; --p-snow:255,255,255; --p-star:255,255,255;
 }}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{
-  background:var(--bg); color:var(--fg); font:15px/1.45 var(--f-body);
+  background:var(--bg); color:var(--fg); font:15px/1.45 var(--f); font-variant-numeric:tabular-nums;
   padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
   -webkit-tap-highlight-color:transparent;
 }
-main{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+main{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px;position:relative;z-index:1}
+
+/* ---- Sfondo animato ---- */
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:linear-gradient(180deg,var(--top,var(--bg)) 0%,var(--bg) 78%)}
+#sky[data-base=day]{--top:var(--sky-day)}
+#sky[data-base=night]{--top:var(--sky-night)}
+#sky[data-base=overcast]{--top:var(--sky-over)} #sky[data-base=overcast][data-night="1"]{--top:var(--sky-over-n)}
+#sky[data-base=rain]{--top:var(--sky-rain)} #sky[data-base=rain][data-night="1"]{--top:var(--sky-rain-n)}
+#sky[data-base=snow]{--top:var(--sky-snow)} #sky[data-base=snow][data-night="1"]{--top:var(--sky-snow-n)}
+#sky[data-base=storm]{--top:var(--sky-storm)} #sky[data-base=storm][data-night="1"]{--top:var(--sky-storm-n)}
+#sky canvas{position:absolute;inset:0;width:100%;height:100%}
+.orb{position:absolute;top:-90px;right:-70px;width:300px;height:300px;border-radius:50%;display:none;
+  background:radial-gradient(circle,var(--sun-core) 0 16%,var(--sun-glow) 17%,transparent 66%);animation:pulse 7s ease-in-out infinite;will-change:transform}
+#sky[data-sun="1"] .orb{display:block}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.07);opacity:1}}
+.cloud{position:absolute;left:-380px;width:380px;height:130px;display:none;will-change:transform;animation:drift linear infinite;
+  background:radial-gradient(closest-side,var(--c),transparent) 0 40px/190px 90px no-repeat,
+             radial-gradient(closest-side,var(--c),transparent) 90px 0/210px 125px no-repeat,
+             radial-gradient(closest-side,var(--c),transparent) 190px 38px/180px 88px no-repeat}
+.c1{top:3%;animation-duration:95s;animation-delay:-35s}
+.c2{top:22%;animation-duration:130s;animation-delay:-95s;scale:.8}
+.c3{top:40%;animation-duration:110s;animation-delay:-12s}
+.c4{top:60%;animation-duration:150s;animation-delay:-70s;scale:.7}
+#sky[data-clouds="1"] .c1,#sky[data-clouds="1"] .c2{display:block;--c:var(--cloud-l)}
+#sky[data-clouds="2"] .cloud{display:block;--c:var(--cloud-d)}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 760px))}}
+.flash{position:absolute;inset:0;background:var(--flash);opacity:0}
+.flash.on{animation:flash 1s ease-out}
+@keyframes flash{0%{opacity:0}6%{opacity:.32}14%{opacity:.04}22%{opacity:.22}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .orb,.cloud{animation-play-state:paused}
+  .flash{display:none}
+}
 button,input{font:inherit;color:inherit}
 .top{display:flex;align-items:center;gap:8px}
 .place{flex:1;min-width:0;background:none;border:0;padding:6px 0;text-align:left;cursor:pointer}
-.place b{display:block;font:600 20px/1.2 var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.place b{display:block;font:600 20px/1.2 var(--f);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .place small{color:var(--muted);font-size:12px}
 .icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;cursor:pointer}
 .icon-btn:focus-visible,.place:focus-visible,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -47,40 +89,47 @@ button,input{font:inherit;color:inherit}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .hero{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:8px 0 4px}
-.temp{font:500 84px/0.9 var(--f-display);letter-spacing:-3px;font-variant-numeric:tabular-nums}
+.temp{font:500 84px/0.9 var(--f);letter-spacing:-3px}
 .temp sup{font-size:32px;letter-spacing:0;vertical-align:top;position:relative;top:10px;color:var(--muted)}
-.cond{font:500 17px/1.3 var(--f-display);margin-top:8px}
+.cond{font:500 17px/1.3 var(--f);margin-top:8px}
 .sub{color:var(--muted);font-size:13px;margin-top:2px}
 .hero .big-ico svg{width:96px;height:96px}
 
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .cell{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-width:0}
-.cell .k{font:500 10.5px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.cell .v{font:500 19px/1.2 var(--f-mono);margin-top:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cell .k{font:500 10.5px/1 var(--f);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cell .v{font:500 20px/1.2 var(--f);margin-top:6px;white-space:nowrap}
 .cell .v small{font-size:12px;color:var(--muted);margin-left:2px}
 .compass{display:inline-block;width:14px;height:14px;vertical-align:-1px;margin-right:4px}
 
-h2{font:600 12px/1 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+h2{font:600 12px/1 var(--f);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+.chart{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;height:132px;touch-action:pan-y}
+.chart svg{display:block;width:100%;height:100%;overflow:visible}
+.chart text{font:500 11px var(--f);fill:var(--muted)}
+.chart text.v{font-size:12px;fill:var(--fg)}
+.chart .tip{position:absolute;top:6px;transform:translateX(-50%);background:var(--panel-solid);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font:500 12px var(--f);white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.chart .tip b{font-weight:600}
 .hours{display:flex;gap:4px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;margin:0 -4px}
-.hour{flex:0 0 56px;scroll-snap-align:start;text-align:center;padding:8px 4px;border-radius:12px}
-.hour.now{background:var(--panel);border:1px solid var(--line)}
-.hour .t{font:500 12px var(--f-mono);color:var(--muted)}
+.hour{flex:0 0 56px;scroll-snap-align:start;text-align:center;padding:8px 4px;border-radius:12px;border:1px solid transparent}
+.hour.now{background:var(--panel);border-color:var(--accent)}
+.hour .t{font:500 12px var(--f);color:var(--muted)}
+.hour.now .t{color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 .hour svg{width:28px;height:28px;margin:4px auto;display:block}
-.hour .d{font:500 15px var(--f-mono)}
-.hour .p{font:500 11px var(--f-mono);color:var(--rain);min-height:15px}
+.hour .d{font:500 16px var(--f)}
+.hour .p{font:500 11px var(--f);color:var(--rain);min-height:15px}
 
 .days{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .day{display:grid;grid-template-columns:78px 30px 38px 1fr;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line)}
 .day:first-child{border-top:0}
 .day .n{font-weight:500}
 .day svg{width:26px;height:26px}
-.day .p{font:500 11px var(--f-mono);color:var(--rain);text-align:right}
-.range{display:grid;grid-template-columns:30px 1fr 30px;align-items:center;gap:8px;font:500 14px var(--f-mono);font-variant-numeric:tabular-nums}
+.day .p{font:500 11px var(--f);color:var(--rain);text-align:right}
+.range{display:grid;grid-template-columns:30px 1fr 30px;align-items:center;gap:8px;font:500 14px var(--f)}
 .range .lo{color:var(--muted);text-align:right}
 .bar{height:6px;border-radius:3px;background:var(--line);position:relative}
 .bar i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--cold),var(--warm))}
 
-.sun{display:flex;justify-content:space-between;color:var(--muted);font:500 13px var(--f-mono)}
+.sun{display:flex;justify-content:space-between;color:var(--muted);font:500 13px var(--f)}
 .foot{color:var(--muted);font-size:12px;text-align:center}
 .install{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
 .install[hidden]{display:none}
@@ -90,7 +139,7 @@ h2{font:600 12px/1 var(--f-body);letter-spacing:.1em;text-transform:uppercase;co
 .foot a{color:inherit}
 .msg{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;color:var(--muted)}
 
-dialog{border:0;border-radius:18px;padding:0;width:min(92vw,440px);background:var(--panel);color:var(--fg)}
+dialog{border:0;border-radius:18px;padding:0;width:min(92vw,440px);background:var(--panel-solid);color:var(--fg)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 .dlg{padding:16px;display:flex;flex-direction:column;gap:10px}
 .dlg input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg)}
@@ -104,6 +153,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </style>
 </head>
 <body>
+<div id="sky" aria-hidden="true"><div class="orb"></div><div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div><div class="cloud c4"></div><canvas></canvas><div class="flash"></div></div>
 <main>
   <div class="top">
     <button class="place" id="placeBtn" aria-label="Cambia località"><b id="placeName">Stazione Meteo</b><small id="updated">—</small></button>
@@ -212,16 +262,30 @@ function ago(t){
   const h = Math.round(m/60); return h<24 ? h+' h fa' : new Date(t).toLocaleDateString('it-IT');
 }
 
+/* Ora attuale nel fuso della località, formato "YYYY-MM-DDTHH:MM" come i tempi di Open-Meteo */
+function localNow(d){ return new Date(Date.now() + (d.utc_offset_seconds||0)*1000).toISOString().slice(0,16); }
+
+let lastData = null, lastStale = false, lastHour = '';
 function render(d, stale){
+  lastData = d; lastStale = stale;
   const c = d.current, dl = d.daily, h = d.hourly;
   $('#updated').textContent = (stale?'Aggiornamento… · ':'Aggiornato ') + ago(d._fetched) + (place.admin?' · '+place.admin:'');
-  // prossime 24 ore
-  const nowIdx = Math.max(0, h.time.findIndex(t => t >= c.time.slice(0,13)+':00'));
+  // prossime 24 ore: dall'ora attuale (arrotondata all'ora corrente) usando l'orologio del telefono
+  const nowL = localNow(d);
+  lastHour = nowL.slice(0,13);
+  let nowIdx = h.time.findIndex(t => t >= lastHour+':00');
+  if(nowIdx<0) nowIdx = Math.max(0, h.time.length-24);
+  const end = Math.min(nowIdx+24, h.time.length);
   let hours = '';
-  for(let i=nowIdx;i<nowIdx+24 && i<h.time.length;i++){
+  for(let i=nowIdx;i<end;i++){
     const p = h.precipitation_probability[i];
     hours += `<div class="hour${i===nowIdx?' now':''}"><div class="t">${i===nowIdx?'Ora':hhmm(h.time[i])}</div>${icon(h.weather_code[i], h.is_day[i]===1)}<div class="d">${r(h.temperature_2m[i])}°</div><div class="p">${p>=10?p+'%':''}</div></div>`;
   }
+  chartData = {times:h.time.slice(nowIdx,end), temps:h.temperature_2m.slice(nowIdx,end)};
+  // giorno/notte da alba e tramonto del giorno corrente
+  let di = dl.time.indexOf(nowL.slice(0,10)); if(di<0) di = 0;
+  const isDay = dl.sunrise && dl.sunrise[di] ? (nowL >= dl.sunrise[di] && nowL < dl.sunset[di]) : c.is_day===1;
+  setSky(skyFor(c.weather_code, isDay));
   // 7 giorni
   const lo = Math.min(...dl.temperature_2m_min), hi = Math.max(...dl.temperature_2m_max), span = Math.max(1, hi-lo);
   let days = '';
@@ -257,11 +321,172 @@ function render(d, stale){
     </section>
     <div class="sun"><span>Alba ${hhmm(dl.sunrise[0])}</span><span>Tramonto ${hhmm(dl.sunset[0])}</span></div>
     <h2>Prossime 24 ore</h2>
+    <div class="chart" id="tchart"></div>
     <div class="hours">${hours}</div>
     <h2>7 giorni</h2>
     <div class="days">${days}</div>
   </div>`;
+  drawChart();
 }
+
+/* ---- Grafico temperatura 24 ore (linea morbida monotona) ---- */
+let chartData = null;
+function smoothPath(xs, ys){
+  const n = xs.length; if(n<2) return '';
+  const m = [], t = [];
+  for(let i=0;i<n-1;i++) m.push((ys[i+1]-ys[i])/(xs[i+1]-xs[i]));
+  t[0] = m[0]; t[n-1] = m[n-2];
+  for(let i=1;i<n-1;i++) t[i] = m[i-1]*m[i] <= 0 ? 0 : (m[i-1]+m[i])/2;
+  for(let i=0;i<n-1;i++){
+    if(m[i]===0){ t[i]=0; t[i+1]=0; continue; }
+    const a = t[i]/m[i], b = t[i+1]/m[i], s = a*a+b*b;
+    if(s>9){ const k = 3/Math.sqrt(s); t[i]=k*a*m[i]; t[i+1]=k*b*m[i]; }
+  }
+  let p = `M${xs[0].toFixed(1)},${ys[0].toFixed(1)}`;
+  for(let i=0;i<n-1;i++){
+    const h = xs[i+1]-xs[i];
+    p += `C${(xs[i]+h/3).toFixed(1)},${(ys[i]+t[i]*h/3).toFixed(1)} ${(xs[i+1]-h/3).toFixed(1)},${(ys[i+1]-t[i+1]*h/3).toFixed(1)} ${xs[i+1].toFixed(1)},${ys[i+1].toFixed(1)}`;
+  }
+  return p;
+}
+function drawChart(){
+  const el = $('#tchart'); if(!el || !chartData || chartData.temps.length<2) return;
+  const {times, temps} = chartData, n = temps.length;
+  const W = el.clientWidth, H = el.clientHeight, pl = 18, pr = 18, pt = 34, pb = 24;
+  const mn = Math.min(...temps), mx = Math.max(...temps), span = Math.max(3, mx-mn);
+  const lo = mn - span*0.08, hi = mx + span*0.08;
+  const step = (W-pl-pr)/(n-1);
+  const xs = temps.map((_,i)=>pl+i*step), ys = temps.map(v=>pt+(hi-v)/(hi-lo)*(H-pt-pb));
+  const line = smoothPath(xs, ys);
+  const area = `${line}L${xs[n-1].toFixed(1)},${H-pb}L${xs[0].toFixed(1)},${H-pb}Z`;
+  const iMax = temps.indexOf(mx), iMin = temps.indexOf(mn);
+  const clampX = x => Math.min(W-pr-8, Math.max(pl+8, x));
+  const lbl = (i, txt) => `<text class="v" x="${clampX(xs[i]).toFixed(1)}" y="${(ys[i]-9).toFixed(1)}" text-anchor="middle">${txt}</text>`;
+  let ticks = '';
+  for(let i=0;i<n;i+=6) ticks += `<text x="${clampX(xs[i]).toFixed(1)}" y="${H-7}" text-anchor="middle">${i===0?'Ora':hhmm(times[i])}</text>`;
+  el.setAttribute('role','img');
+  el.setAttribute('aria-label', `Temperatura nelle prossime 24 ore: ora ${r(temps[0])}°, massima ${r(mx)}° alle ${hhmm(times[iMax])}, minima ${r(mn)}° alle ${hhmm(times[iMin])}`);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    <defs><linearGradient id="tfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--warm)" stop-opacity=".28"/><stop offset="1" stop-color="var(--warm)" stop-opacity="0"/></linearGradient></defs>
+    <line x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}" stroke="var(--line)"/>
+    <path d="${area}" fill="url(#tfill)"/>
+    <path d="${line}" fill="none" stroke="var(--warm)" stroke-width="2" stroke-linecap="round"/>
+    ${iMax!==0?lbl(iMax, r(mx)+'°'):''}${iMin!==0 && iMin!==iMax?lbl(iMin, r(mn)+'°'):''}${lbl(0, r(temps[0])+'°')}
+    <circle cx="${xs[0]}" cy="${ys[0]}" r="4.5" fill="var(--warm)" stroke="var(--panel-solid)" stroke-width="2"/>
+    ${ticks}
+    <g class="hover" style="display:none"><line y1="${pt-6}" y2="${H-pb}" stroke="var(--muted)" stroke-dasharray="2 3"/><circle r="4.5" fill="var(--warm)" stroke="var(--panel-solid)" stroke-width="2"/></g>
+  </svg><div class="tip" hidden></div>`;
+  const hov = el.querySelector('.hover'), hl = hov.querySelector('line'), hc = hov.querySelector('circle'), tip = el.querySelector('.tip');
+  const show = e => {
+    const x = e.clientX - el.getBoundingClientRect().left;
+    const i = Math.max(0, Math.min(n-1, Math.round((x-pl)/step)));
+    hov.style.display = ''; hl.setAttribute('x1', xs[i]); hl.setAttribute('x2', xs[i]);
+    hc.setAttribute('cx', xs[i]); hc.setAttribute('cy', ys[i]);
+    tip.hidden = false; tip.innerHTML = `${i===0?'Ora':hhmm(times[i])} · <b>${temps[i].toFixed(1)}°</b>`;
+    tip.style.left = Math.min(W-50, Math.max(50, xs[i]))+'px';
+  };
+  const hide = () => { hov.style.display='none'; tip.hidden = true; };
+  el.onpointermove = show; el.onpointerdown = show; el.onpointerleave = hide; el.onpointercancel = hide;
+}
+
+/* ---- Sfondo animato: meteo + giorno/notte ---- */
+function skyFor(code, day){
+  const s = {base: day?'day':'night', night: !day, sun:false, stars:false, clouds:0, precip:null, intensity:1, lightning:false};
+  if(code<=1){ s.sun = day; s.stars = !day; }
+  else if(code===2){ s.sun = day; s.stars = !day; s.clouds = 1; }
+  else if(code===3||code===45||code===48){ s.base='overcast'; s.clouds=2; }
+  else if((code>=51&&code<=67)||(code>=80&&code<=82)){ s.base='rain'; s.clouds=2; s.precip='rain';
+    s.intensity = code<=57 ? .45 : (code===65||code===67||code===82) ? 1.7 : 1; }
+  else if((code>=71&&code<=77)||code===85||code===86){ s.base='snow'; s.clouds=1; s.precip='snow';
+    s.intensity = (code===75||code===86) ? 1.6 : code===71 ? .7 : 1; }
+  else if(code>=95){ s.base='storm'; s.clouds=2; s.precip='rain'; s.intensity=1.5; s.lightning=true; }
+  else { s.base='overcast'; s.clouds=2; }
+  return s;
+}
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const darkMode = matchMedia('(prefers-color-scheme: dark)');
+const sky = {el: $('#sky'), cv: $('#sky canvas'), cfg: null, key: '', parts: [], raf: 0, last: 0, w: 0, h: 0, col: {}, flashT: 0};
+sky.ctx = sky.cv.getContext('2d');
+function setSky(cfg){
+  const key = JSON.stringify(cfg);
+  if(key===sky.key) return;
+  sky.key = key; sky.cfg = cfg;
+  const el = sky.el;
+  el.dataset.base = cfg.base; el.dataset.night = cfg.night?'1':'0';
+  el.dataset.sun = cfg.sun?'1':'0'; el.dataset.clouds = String(cfg.clouds);
+  restartSky();
+}
+function restartSky(){
+  if(!sky.cfg) return;
+  cancelAnimationFrame(sky.raf); clearTimeout(sky.flashT);
+  const cs = getComputedStyle(document.documentElement);
+  sky.col = {rain: cs.getPropertyValue('--p-rain').trim(), snow: cs.getPropertyValue('--p-snow').trim(), star: cs.getPropertyValue('--p-star').trim()};
+  const dpr = Math.min(1.5, window.devicePixelRatio||1);
+  sky.w = innerWidth; sky.h = innerHeight;
+  sky.cv.width = Math.round(sky.w*dpr); sky.cv.height = Math.round(sky.h*dpr);
+  sky.ctx.setTransform(dpr,0,0,dpr,0,0);
+  const {cfg, w, h} = sky, area = w*h, R = Math.random;
+  sky.parts = [];
+  if(cfg.precip==='rain'){
+    const n = Math.min(180, Math.round(area/9000*cfg.intensity));
+    for(let i=0;i<n;i++) sky.parts.push({k:'r', x:R()*w, y:R()*h, l:(8+R()*12)*(cfg.intensity<1?.7:1), v:(cfg.intensity<1?320:620)+R()*280, a:.18+R()*.32});
+  }else if(cfg.precip==='snow'){
+    const n = Math.min(110, Math.round(area/11000*cfg.intensity));
+    for(let i=0;i<n;i++) sky.parts.push({k:'s', x:R()*w, y:R()*h, r:1+R()*2.2, v:22+R()*40, ph:R()*6.28, sw:8+R()*18, a:.45+R()*.45});
+  }
+  if(cfg.stars){
+    const n = Math.min(130, Math.round(area/7000));
+    for(let i=0;i<n;i++) sky.parts.push({k:'t', x:R()*w, y:Math.pow(R(),1.4)*h*.75, r:.4+R()*1.1, ph:R()*6.28, sp:.6+R()*1.6});
+  }
+  if(reduceMotion.matches){ drawSky(0, 0); return; }   // un solo fotogramma statico
+  if(sky.parts.length){ sky.last = performance.now(); sky.raf = requestAnimationFrame(skyFrame); }
+  else sky.ctx.clearRect(0,0,w,h);
+  if(cfg.lightning) scheduleFlash();
+}
+function skyFrame(ts){
+  sky.raf = requestAnimationFrame(skyFrame);
+  if(ts - sky.last < 32) return;                      // ~30 fps bastano
+  const dt = Math.min(.1, (ts - sky.last)/1000); sky.last = ts;
+  drawSky(dt, ts/1000);
+}
+function drawSky(dt, t){
+  const {ctx, w, h, parts, col} = sky, still = reduceMotion.matches;
+  ctx.clearRect(0,0,w,h);
+  ctx.lineCap = 'round';
+  for(const p of parts){
+    if(p.k==='r'){
+      if(still) continue;                             // pioggia statica sembrerebbe un graffio: niente gocce
+      p.y += p.v*dt; p.x += p.v*dt*.12;
+      if(p.y > h){ p.y = -p.l; p.x = Math.random()*w; }
+      if(p.x > w) p.x -= w;
+      ctx.strokeStyle = `rgba(${col.rain},${p.a})`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.l*.12, p.y - p.l); ctx.stroke();
+    }else if(p.k==='s'){
+      if(!still){ p.y += p.v*dt; p.ph += dt*.8; if(p.y > h+4){ p.y = -4; p.x = Math.random()*w; } }
+      const x = p.x + Math.sin(p.ph)*p.sw;
+      ctx.fillStyle = `rgba(${col.snow},${p.a})`;
+      ctx.beginPath(); ctx.arc(x, p.y, p.r, 0, 6.283); ctx.fill();
+    }else{
+      const a = still ? .6 : .25 + .6*(.5+.5*Math.sin(t*p.sp + p.ph));
+      ctx.fillStyle = `rgba(${col.star},${a.toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+    }
+  }
+}
+function scheduleFlash(){
+  sky.flashT = setTimeout(()=>{
+    if(!sky.cfg || !sky.cfg.lightning || reduceMotion.matches) return;
+    const f = sky.el.querySelector('.flash');
+    if(!document.hidden){ f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+    scheduleFlash();
+  }, 5000 + Math.random()*11000);
+}
+let resizeRaf = 0;
+addEventListener('resize', ()=>{ cancelAnimationFrame(resizeRaf); resizeRaf = requestAnimationFrame(()=>{ restartSky(); drawChart(); }); });
+reduceMotion.addEventListener?.('change', restartSky);
+darkMode.addEventListener?.('change', ()=>{ restartSky(); drawChart(); });
+/* Se cambia l'ora mentre l'app è aperta, riparti dalla nuova ora e ricalcola giorno/notte */
+setInterval(()=>{ if(lastData && !document.hidden && localNow(lastData).slice(0,13)!==lastHour) render(lastData, lastStale); }, 30000);
 
 /* ---- Ricerca località ---- */
 const dlg = $('#dlg');
@@ -324,6 +549,7 @@ document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState!=='visible' || !place) return;
   const c = store.get('meteo.cache.'+place.id, null);
   if(!c || Date.now()-c._fetched > 600000) load();
+  else if(lastData && localNow(lastData).slice(0,13)!==lastHour) render(lastData, lastStale);
 });
 load();
 
@@ -341,7 +567,16 @@ if(GOATCOUNTER && location.protocol.startsWith('http') && !/^(localhost|127\.)/.
 
 /* ---- Installazione come app (service worker) ---- */
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(reg => {
+    // Quando torni sull'app controlla se c'è una versione nuova
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+  }).catch(() => {}));
+  // Se una versione nuova prende il controllo, ricarica una volta per mostrarla subito
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloaded) { reloaded = true; location.reload(); }
+  });
 }
 /* Pulsante "Installa": apre direttamente la finestra di installazione di Chrome */
 let installEvt = null;

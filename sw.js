@@ -1,8 +1,10 @@
 // Service worker: rende l'app installabile e la fa aprire anche senza rete.
 // I dati meteo restano gestiti dalla pagina (cache in localStorage).
-const CACHE = 'meteo-v3';
+const CACHE = 'meteo-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
+  './fonts/space-grotesk-latin-400-normal.woff2', './fonts/space-grotesk-latin-500-normal.woff2',
+  './fonts/space-grotesk-latin-600-normal.woff2', './fonts/space-grotesk-latin-700-normal.woff2'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

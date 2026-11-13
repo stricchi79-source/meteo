@@ -82,7 +82,7 @@ qualsiasi stringa univoca, ad esempio l'ID restituito dalla ricerca di Open-Mete
 
 L'app non ha server propri: tutto avviene nel browser. Le località salvate e i dati in cache
 restano nel `localStorage` del dispositivo. Le richieste esterne sono verso le API di
-Open-Meteo (previsioni e ricerca località), Google Fonts (caratteri tipografici) e, se attivato,
+Open-Meteo (previsioni e ricerca località) e, se attivato,
 GoatCounter (contatore visite).
 
 ## Statistiche visite
@@ -107,4 +107,4 @@ Le visite fatte aprendo il file in locale o da `localhost` non vengono contate.
 ## Crediti
 
 - Dati meteo: [Open-Meteo](https://open-meteo.com) (licenza CC BY 4.0).
-- Caratteri: IBM Plex Sans, IBM Plex Mono e Space Grotesk da Google Fonts.
+- Carattere: Space Grotesk (licenza SIL OFL), ospitato nella cartella `fonts/`, quindi niente richieste a Google e funziona anche offline.

@@ -115,3 +115,7 @@ Le visite fatte aprendo il file in locale o da `localhost` non vengono contate.
 scritte grandi, impaginazione orizzontale, JavaScript semplice (ES5) per i browser più vecchi,
 aggiornamento automatico ogni 15 minuti. Indirizzo: https://stricchi79-source.github.io/meteo/tv/
 Per un'altra località: `tv/?lat=45.07&lon=7.69&nome=Torino`.
+
+Sullo sfondo della versione TV ruotano 6 foto di Castelnuovo Bormida (una ogni 15 minuti), prese da
+Wikimedia Commons con licenza CC BY-SA 3.0 / CC BY 3.0: autori F Ceragioli, Davide Papalini e Terensky.
+I crediti sono mostrati in basso a destra sulla pagina.

@@ -14,8 +14,11 @@
 -->
 <style>
 html,body{margin:0;padding:0;height:100%;overflow:hidden}
-body{background:#0b1622;color:#f2f6fa;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.2;cursor:none}
-body.giorno{background:#0f2840}
+body{background:#0b1622;color:#f2f6fa;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.2;cursor:none;text-shadow:0 .1rem .35rem rgba(0,0,0,.85)}
+/* Foto del paese sullo sfondo, scurita perché le scritte restino leggibili */
+#bg{position:absolute;top:0;left:0;right:0;bottom:0;background-color:#0b1622;background-position:center center;background-repeat:no-repeat;background-size:cover;-webkit-background-size:cover}
+#velo{position:absolute;top:0;left:0;right:0;bottom:0;background:#000;background:rgba(4,10,18,.5)}
+#credit{position:absolute;right:2rem;bottom:.35rem;font-size:.9rem;color:#c8d4de;text-shadow:0 0 .3rem #000}
 #app{position:absolute;top:0;left:0;right:0;bottom:0;padding:1.2rem 2rem;box-sizing:border-box;-webkit-box-sizing:border-box}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 td{padding:0;vertical-align:middle}
@@ -35,7 +38,7 @@ td{padding:0;vertical-align:middle}
 #temp sup{font-size:3rem;color:#9fb3c6;vertical-align:top;position:relative;top:.6rem}
 #cond{font-size:2.3rem;margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sub{font-size:1.6rem;color:#9fb3c6;margin-top:.3rem;white-space:nowrap}
-.cell{background:#16283a;border-radius:.8rem;padding:.6rem 1rem;margin:.3rem}
+.cell{background:#16283a;background:rgba(10,24,38,.62);border-radius:.8rem;padding:.6rem 1rem;margin:.3rem}
 .k{font-size:1.15rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.1rem}
 .v{font-size:2.5rem;font-weight:bold;margin-top:.15rem;white-space:nowrap;overflow:hidden}
 .v small{font-size:1.3rem;font-weight:normal;color:#9fb3c6;margin-left:.3rem}
@@ -43,8 +46,8 @@ td{padding:0;vertical-align:middle}
 /* Ore e giorni */
 h2{font-size:1.25rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.15rem;margin:.9rem 0 .4rem;font-weight:bold}
 .strip td{text-align:center}
-.box{background:#16283a;border-radius:.8rem;padding:.4rem .2rem;margin:0 .25rem}
-.box.now{background:#1f4466}
+.box{background:#16283a;background:rgba(10,24,38,.62);border-radius:.8rem;padding:.4rem .2rem;margin:0 .25rem}
+.box.now{background:#1f4466;background:rgba(31,78,122,.85)}
 .t{font-size:1.4rem;color:#9fb3c6}
 .box.now .t{color:#ffffff;font-weight:bold}
 .ico{width:3.3rem;height:3.3rem;display:block;margin:.15rem auto}
@@ -56,6 +59,7 @@ h2{font-size:1.25rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.15re
 </style>
 </head>
 <body>
+<div id="bg"></div><div id="velo"></div>
 <div id="app" style="display:none"><div id="inner">
   <table><tr>
     <td style="width:60%"><div id="place">Meteo</div><div id="upd">&nbsp;</div></td>
@@ -83,6 +87,7 @@ h2{font-size:1.25rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.15re
   <div id="days"></div>
 </div></div>
 <div id="msg">Caricamento del meteo…</div>
+<div id="credit"></div>
 
 <script>
 (function(){
@@ -173,6 +178,28 @@ h2{font-size:1.25rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.15re
 
   /* ---- Scarica i dati ---- */
   var lastData = null, lastOk = 0, timer = null;
+
+  /* ---- Foto di sfondo: cambiano a turno ogni 15 minuti (foto libere da Wikimedia Commons) ---- */
+  var FOTO = [
+    {f:'foto/1.jpg', c:'Panorama · foto F Ceragioli, CC BY-SA 3.0'},
+    {f:'foto/2.jpg', c:'Castello · foto Davide Papalini, CC BY-SA 3.0'},
+    {f:'foto/3.jpg', c:'Torre del castello · foto Davide Papalini, CC BY-SA 3.0'},
+    {f:'foto/4.jpg', c:'Chiesa dei Santi Quirico e Giulitta · foto Terensky, CC BY 3.0'},
+    {f:'foto/5.jpg', c:'Chiesa dei Santi Quirico e Giulitta · foto Davide Papalini, CC BY-SA 3.0'},
+    {f:'foto/6.jpg', c:'Municipio · foto F Ceragioli, CC BY-SA 3.0'}
+  ];
+  var fotoOra = -1;
+  function sfondo(){
+    if(place.name !== 'Castelnuovo Bormida' && param('lat')) return;   // le foto sono solo del paese
+    var i = Math.floor(new Date().getTime() / AGGIORNA_MS) % FOTO.length;
+    if(i === fotoOra) return;
+    fotoOra = i;
+    $('bg').style.backgroundImage = 'url(' + FOTO[i].f + ')';
+    $('credit').innerHTML = FOTO[i].c + ' · Wikimedia Commons';
+    var pre = new Image(); pre.src = FOTO[(i + 1) % FOTO.length].f;      // prepara già la prossima
+  }
+  sfondo();
+  setInterval(sfondo, 30000);
   function memo(k, v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
 
   function carica(){
@@ -274,7 +301,7 @@ h2{font-size:1.25rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.15re
     scala();
     var h = window.innerHeight || document.documentElement.clientHeight || 720;
     var fs = parseFloat(document.documentElement.style.fontSize);
-    var alto = $('inner').offsetHeight + 2.4 * fs;
+    var alto = $('inner').offsetHeight + 3.4 * fs;
     if(alto > h){ document.documentElement.style.fontSize = (fs * h / alto * 0.98).toFixed(2) + 'px'; }
   }
 

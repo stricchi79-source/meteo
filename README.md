@@ -119,3 +119,11 @@ Per un'altra località: `tv/?lat=45.07&lon=7.69&nome=Torino`.
 Sullo sfondo della versione TV ruotano 6 foto di Castelnuovo Bormida (una ogni 15 minuti), prese da
 Wikimedia Commons con licenza CC BY-SA 3.0 / CC BY 3.0: autori F Ceragioli, Davide Papalini e Terensky.
 I crediti sono mostrati in basso a destra sulla pagina.
+
+## Allerte
+
+Per Castelnuovo Bormida l'app e la versione TV mostrano le allerte del
+[Bollettino di criticità della Protezione Civile](https://mappe.protezionecivile.gov.it/it/mappe-rischi/bollettino-di-criticita)
+(zona di allerta "Belbo e Bormida") e gli avvisi [MeteoAlarm](https://meteoalarm.org) per il Piemonte, entrambi CC BY 4.0.
+Il file `allerte.json` è aggiornato ogni 30 minuti da GitHub Actions (`.github/workflows/allerte.yml`).
+Per i messaggi ufficiali fanno fede sempre il Comune e la Regione Piemonte.

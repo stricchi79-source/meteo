@@ -1,0 +1,23 @@
+{
+ "comune": "Castelnuovo Bormida",
+ "fonti": "Protezione Civile (Bollettino di criticità) · MeteoAlarm · CC BY 4.0",
+ "protezione_civile": {
+  "zona": "Belbo e Bormida",
+  "bollettino": "Bollettino del 14 novembre 2026 ore 14:24",
+  "giorni": [
+   {
+    "data": "2026-11-14",
+    "idrogeologico": 0,
+    "idraulico": 0,
+    "temporali": 0
+   },
+   {
+    "data": "2026-11-15",
+    "idrogeologico": 0,
+    "idraulico": 0,
+    "temporali": 0
+   }
+  ]
+ },
+ "meteoalarm": []
+}

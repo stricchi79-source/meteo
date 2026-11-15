@@ -1,0 +1,38 @@
+name: Aggiorna allerte
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"     # ogni 30 minuti
+  workflow_dispatch:            # si può lanciare anche a mano dalla scheda Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: allerte
+  cancel-in-progress: false
+
+jobs:
+  allerte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Scarica le allerte
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/allerte.py
+      - name: Salva se sono cambiate
+        run: |
+          if git diff --quiet -- allerte.json && git ls-files --error-unmatch allerte.json >/dev/null 2>&1; then
+            echo "Niente da salvare"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add allerte.json
+          git commit -m "Allerte aggiornate"
+          git pull --rebase --quiet
+          git push

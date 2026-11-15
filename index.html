@@ -154,6 +154,27 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .row button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--bg);cursor:pointer}
 .row .primary{background:var(--accent);border-color:var(--accent);color:#fff}
 @media (prefers-reduced-motion:reduce){.spin svg{animation:none}}
+
+/* Foto del paese dietro la lettura principale (solo per Castelnuovo Bormida) */
+.hero.photo{position:relative;overflow:hidden;border-radius:18px;padding:18px 16px 26px;min-height:210px;
+  background:#24394c center/cover no-repeat;--muted:rgba(255,255,255,.85);--fg:#fff;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.hero.photo::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,14,24,.12),rgba(5,14,24,.7))}
+.hero.photo>*{position:relative}
+.hero.photo .big-ico{filter:drop-shadow(0 1px 4px rgba(0,0,0,.55))}
+.hero.photo .credit{position:absolute;right:10px;bottom:6px;font-size:10px;line-height:1.2;color:rgba(255,255,255,.78);text-shadow:0 0 4px #000}
+
+/* Allerte */
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:flex;gap:10px;align-items:flex-start;border-radius:14px;padding:11px 13px;font-size:13px;line-height:1.35;color:#231a00;text-decoration:none}
+.alert b{display:block;font-size:15px;font-weight:600}
+.alert small{display:block;font-size:12px;opacity:.85}
+.alert .ai{font-size:20px;line-height:1.1}
+.al1{background:#ffd84d}
+.al2{background:#ff9a3c}
+.al3{background:#d32f2f;color:#fff}
+.al0{background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:9px 13px}
+.al0 b{font-size:13px;font-weight:500;color:var(--fg)}
+.al0 .ai{font-size:15px;color:#2e9d57}
 </style>
 </head>
 <body>
@@ -165,7 +186,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   </div>
   <div class="install" id="installBar" hidden><img src="icons/icon-192.png" alt=""><span>Installa Meteo sul telefono</span><button type="button" id="installBtn">Installa</button></div>
   <div id="content"><div class="msg">Caricamento…</div></div>
-  <div class="foot">Dati <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · tocca il nome per cambiare località</div>
+  <div class="foot">Dati <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · allerte Protezione Civile e MeteoAlarm (CC BY 4.0) · tocca il nome per cambiare località</div>
 </main>
 
 <dialog id="dlg">
@@ -235,6 +256,63 @@ let place = store.get('meteo.place', null) || HOME;
 let saved = store.get('meteo.saved', []);
 if(!saved.some(s=>s.id===HOME.id)) saved.push(HOME);
 
+/* ---- Foto del paese: le stesse della versione TV, una diversa ogni 15 minuti ---- */
+const FOTO = [
+  {f:'tv/foto/1.jpg', c:'Panorama · F Ceragioli, CC BY-SA 3.0'},
+  {f:'tv/foto/2.jpg', c:'Castello · Davide Papalini, CC BY-SA 3.0'},
+  {f:'tv/foto/3.jpg', c:'Torre del castello · Davide Papalini, CC BY-SA 3.0'},
+  {f:'tv/foto/4.jpg', c:'Chiesa dei Santi Quirico e Giulitta · Terensky, CC BY 3.0'},
+  {f:'tv/foto/5.jpg', c:'Chiesa dei Santi Quirico e Giulitta · Davide Papalini, CC BY-SA 3.0'},
+  {f:'tv/foto/6.jpg', c:'Municipio · F Ceragioli, CC BY-SA 3.0'}
+];
+const fotoDelMomento = () => place && place.id===HOME.id ? FOTO[Math.floor(Date.now()/900000) % FOTO.length] : null;
+
+/* ---- Allerte (Protezione Civile + MeteoAlarm), raccolte ogni 30 minuti da GitHub Actions in allerte.json ---- */
+let allerte = store.get('meteo.allerte', null);
+async function caricaAllerte(){
+  if(!place || place.id!==HOME.id) return;
+  try{
+    const r = await fetch('allerte.json', {cache:'no-cache'});
+    if(r.ok){ allerte = await r.json(); store.set('meteo.allerte', allerte); }
+  }catch(e){}
+}
+const COLORE = ['', 'gialla', 'arancione', 'rossa'];
+const TIPI = {'Wind':'vento','Snow/Ice':'neve e ghiaccio','snow-ice':'neve e ghiaccio','Thunderstorm':'temporali','Fog':'nebbia',
+  'High temperature':'caldo','high-temperature':'caldo','Low temperature':'freddo','low-temperature':'freddo','Coastal Event':'mareggiate',
+  'Forest fire':'incendi boschivi','forest-fire':'incendi boschivi','Avalanches':'valanghe','Rain':'pioggia','Flooding':'piene dei fiumi','Rain/Flood':'pioggia e piene'};
+const URL_PC = 'https://mappe.protezionecivile.gov.it/it/mappe-rischi/bollettino-di-criticita';
+function quandoIt(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('it-IT',{weekday:'short', day:'numeric'})+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+function htmlAllerte(oggi){
+  if(!allerte || !place || place.id!==HOME.id) return {attive:'', nessuna:''};
+  const pc = allerte.protezione_civile, voci = [];
+  const RISCHI = ['idrogeologico','idraulico','temporali'];
+  let pcValido = false;
+  if(pc) pc.giorni.forEach(g=>{
+    if(g.data < oggi) return;
+    pcValido = true;
+    const quando = g.data===oggi ? 'oggi' : 'domani';
+    for(let lv=3; lv>=1; lv--){
+      const r = RISCHI.filter(k=>g[k]===lv);
+      if(r.length) voci.push({lv, url:URL_PC, t:'Allerta '+COLORE[lv]+' '+quando, d:'Rischio '+r.join(', ')+' · Protezione Civile, zona '+pc.zona});
+    }
+  });
+  (allerte.meteoalarm||[]).forEach(m=>{
+    if(m.fine && new Date(m.fine) < new Date()) return;
+    voci.push({lv:m.livello, url:'https://meteoalarm.org', t:'Avviso '+COLORE[m.livello]+': '+(TIPI[m.tipo]||m.evento||m.tipo),
+      d:'Piemonte, '+(m.inizio?'da '+quandoIt(m.inizio):'')+(m.fine?' a '+quandoIt(m.fine):'')+' · MeteoAlarm'});
+  });
+  const a = (v, cls, ico) => `<a class="alert ${cls}" href="${v.url}" target="_blank" rel="noopener"><span class="ai">${ico}</span><span><b>${v.t}</b><small>${v.d}</small></span></a>`;
+  if(voci.length){
+    voci.sort((x,y)=>y.lv-x.lv);
+    return {attive:'<section class="alerts">'+voci.map(v=>a(v,'al'+v.lv,'⚠')).join('')+'</section>', nessuna:''};
+  }
+  if(!pcValido) return {attive:'', nessuna:''};
+  return {attive:'', nessuna:a({url:URL_PC, t:'Nessuna allerta oggi e domani', d:'Protezione Civile, zona '+pc.zona}, 'al0', '✓')};
+}
+
 async function load(){
   if(!place){ openDialog(); $('#content').innerHTML = '<div class="msg">Scegli una località per iniziare.</div>'; return; }
   $('#placeName').textContent = place.name;
@@ -247,7 +325,7 @@ async function load(){
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max'+
     '&timezone=auto&forecast_days=7';
   try{
-    const res = await fetch(url);
+    const [res] = await Promise.all([fetch(url), caricaAllerte()]);
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
     data._fetched = Date.now();
@@ -301,16 +379,20 @@ function render(d, stale){
     days += `<div class="day"><span class="n">${name}</span>${icon(dl.weather_code[i])}<span class="p">${p>=10?p+'%':''}</span>
       <div class="range"><span class="lo">${r(dl.temperature_2m_min[i])}°</span><div class="bar"><i style="left:${a}%;right:${100-b}%"></i></div><span>${r(dl.temperature_2m_max[i])}°</span></div></div>`;
   });
+  const ph = fotoDelMomento();
+  const al = htmlAllerte(nowL.slice(0,10));
   const arrow = `<svg class="compass" viewBox="0 0 24 24" style="transform:rotate(${c.wind_direction_10m+180}deg)" fill="currentColor"><path d="M12 2l5 16-5-3-5 3z"/></svg>`;
   $('#content').innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
-    <section class="hero">
+    ${al.attive}
+    <section class="hero${ph?' photo':''}"${ph?` style="background-image:url('${ph.f}')"`:''}>
       <div>
         <div class="temp">${r(c.temperature_2m)}<sup>°C</sup></div>
         <div class="cond">${WMO[c.weather_code]||'—'}</div>
         <div class="sub">Percepita ${r(c.apparent_temperature)}° · Max ${r(dl.temperature_2m_max[0])}° Min ${r(dl.temperature_2m_min[0])}°</div>
       </div>
       <div class="big-ico">${icon(c.weather_code, c.is_day===1)}</div>
+      ${ph?`<div class="credit">${ph.c} · Wikimedia Commons</div>`:''}
     </section>
     <section class="grid">
       <div class="cell"><div class="k">Vento</div><div class="v">${arrow}${r(c.wind_speed_10m)}<small>km/h</small></div></div>
@@ -324,6 +406,7 @@ function render(d, stale){
       <div class="cell"><div class="k">UV max</div><div class="v">${dl.uv_index_max[0].toFixed(0)}<small>${uvLabel(dl.uv_index_max[0])}</small></div></div>
     </section>
     <div class="sun"><span>Alba ${hhmm(dl.sunrise[0])}</span><span>Tramonto ${hhmm(dl.sunset[0])}</span></div>
+    ${al.nessuna}
     <h2>Prossime 24 ore</h2>
     <div class="chart" id="tchart"></div>
     <div class="hours">${hours}</div>

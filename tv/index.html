@@ -61,6 +61,28 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
 .p{font-size:1.3rem;color:#6cc0ff;height:1.6rem;line-height:1.6rem}
 
 #msg{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:3rem;color:#c6d4e0}
+
+/* Vento nelle caselle delle ore */
+.w{font-size:1.15rem;color:#c6d4e0}
+/* Avviso pioggia in arrivo */
+#pioggia{margin-top:.6rem;background:#1f6fb2;color:#ffffff;border-radius:.8rem;padding:.6rem 1.2rem;text-shadow:none;font-size:2.2rem;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pioggia small{font-size:1.5rem;font-weight:normal;margin-left:1rem}
+#pioggia.ora{background:#174a7c}
+/* Consiglio per il lavoro */
+#consiglio{margin-top:.5rem;font-size:1.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#consiglio b{color:#ffcf6b}
+/* Nota allerte ufficiali */
+#ufficiali{position:absolute;left:2rem;bottom:.35rem;font-size:.9rem;color:#c8d4de;text-shadow:0 0 .3rem #000}
+/* Radar a schermo intero, si alterna con il meteo */
+#radar{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;background:#cfd8e0;display:none}
+#rtiles{position:absolute;top:0;left:0}
+#rtiles img{position:absolute;display:block}
+#rpunto{position:absolute;width:1.4rem;height:1.4rem;margin:-.7rem 0 0 -.7rem;border-radius:50%;background:#d0702a;border:.25rem solid #ffffff}
+#rtitolo{position:absolute;top:1.2rem;left:2rem;background:rgba(10,24,38,.85);border-radius:.8rem;padding:.6rem 1.2rem;font-size:2.4rem;font-weight:bold}
+#rtitolo small{display:block;font-size:1.4rem;font-weight:normal;color:#c6d4e0;margin-top:.2rem}
+#rbarra{position:absolute;left:2rem;right:2rem;bottom:2.2rem;height:.6rem;background:rgba(10,24,38,.6);border-radius:.3rem;overflow:hidden}
+#rbarra div{height:100%;width:0;background:#1f6fb2}
+#rcredit{position:absolute;right:1rem;bottom:.3rem;font-size:.9rem;color:#14202b;text-shadow:none;background:rgba(255,255,255,.7);padding:.1rem .4rem;border-radius:.3rem}
 </style>
 </head>
 <body>
@@ -71,6 +93,7 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
     <td><div id="clock">--:--</div><div id="date">&nbsp;</div></td>
   </tr></table>
   <div id="allerta" style="display:none"></div>
+  <div id="pioggia" style="display:none"></div>
 
   <table class="hero"><tr>
     <td style="width:42%">
@@ -85,6 +108,7 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
       <div id="cells"></div>
     </td>
   </tr></table>
+  <div id="consiglio">&nbsp;</div>
 
   <h2>Prossime ore</h2>
   <div id="hours"></div>
@@ -94,6 +118,12 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
 </div></div>
 <div id="msg">Caricamento del meteo…</div>
 <div id="credit"></div>
+<div id="ufficiali">Indicazioni non ufficiali: per le allerte vere segui la Protezione Civile e il tuo Comune</div>
+<div id="radar"><div id="rtiles"></div><div id="rpunto"></div>
+  <div id="rtitolo">Radar pioggia<small id="rora">&nbsp;</small></div>
+  <div id="rbarra"><div id="rbar"></div></div>
+  <div id="rcredit">Radar RainViewer · mappa © OpenStreetMap</div>
+</div>
 
 <script>
 (function(){
@@ -213,8 +243,9 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
     caricaAllerte();
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + place.lat + '&longitude=' + place.lon +
       '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
-      '&hourly=temperature_2m,precipitation_probability,weather_code,is_day' +
-      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset' +
+      '&hourly=temperature_2m,precipitation_probability,weather_code,is_day,precipitation,apparent_temperature,wind_speed_10m,wind_gusts_10m' +
+      '&minutely_15=precipitation&forecast_minutely_15=12' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max' +
       '&timezone=auto&forecast_days=7';
     var x = new XMLHttpRequest();
     x.open('GET', url + '&_=' + new Date().getTime(), true);
@@ -326,7 +357,7 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
     function cell(k, v, u){ return '<td><div class="cell"><div class="k">' + k + '</div><div class="v">' + v + '<small>' + u + '</small></div></div></td>'; }
     var pr = dl.precipitation_probability_max[di];
     $('cells').innerHTML = '<table><tr>' +
-        cell('Vento', r(c.wind_speed_10m), 'km/h ' + DIRS[Math.round(c.wind_direction_10m / 45) % 8]) +
+        cell('Vento · raffiche', r(c.wind_speed_10m) + ' / ' + r(c.wind_gusts_10m), 'km/h ' + DIRS[Math.round(c.wind_direction_10m / 45) % 8]) +
         cell('Umidità', r(c.relative_humidity_2m), '%') +
         cell('Pressione', r(c.pressure_msl), 'hPa') +
       '</tr><tr>' +
@@ -346,9 +377,17 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
       var p = h.precipitation_probability[i];
       row += '<td><div class="box' + (n === 0 ? ' now' : '') + '"><div class="t">' + (n === 0 ? 'Adesso' : hhmm(h.time[i])) + '</div>' +
         icon(h.weather_code[i], h.is_day[i] === 1, 'ico') + '<div class="d">' + r(h.temperature_2m[i]) + '°</div>' +
-        '<div class="p">' + (p >= 10 ? '☂ ' + p + '%' : '') + '</div></div></td>';
+        '<div class="p">' + (p >= 10 ? '☂ ' + p + '%' : '') + '</div>' +
+        (h.wind_speed_10m ? '<div class="w">vento ' + r(h.wind_speed_10m[i]) + ' km/h</div>' : '') + '</div></td>';
     }
     $('hours').innerHTML = '<table class="strip"><tr>' + row + '</tr></table>';
+
+    /* Avviso pioggia in arrivo e consiglio per il lavoro */
+    var av = avvisoPioggia(d, start, nowL), elP = $('pioggia');
+    if(av){ elP.className = av.ora ? 'ora' : ''; elP.innerHTML = av.t + '<small>' + av.s + '</small>'; elP.style.display = 'block'; }
+    else elP.style.display = 'none';
+    var co = consiglio(d, start, di, nowL);
+    $('consiglio').innerHTML = co || '&nbsp;';
 
     /* Prossimi giorni */
     row = '';
@@ -365,6 +404,138 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
     $('app').style.display = 'block';
     adatta();
   }
+
+  /* ---- Pioggia in arrivo (prossime 6 ore; i quarti d'ora di Open-Meteo per l'orario preciso) ---- */
+  function isNeve(c){ return (c >= 71 && c <= 77) || c === 85 || c === 86; }
+  function isPioggia(c){ return (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95; }
+  function mm(v){ return v.toFixed(1).replace('.', ','); }
+  function minutiTra(a, b){ return Math.round((isoMs(b) - isoMs(a)) / 60000); }
+  function avvisoPioggia(d, start, nowL){
+    var h = d.hourly, c = d.current, m = d.minutely_15, prec = h.precipitation || [], i, j, m0 = -1;
+    if(m && m.time){ for(i = 0; i < m.time.length; i++){ if(m.time[i] > nowL){ m0 = Math.max(0, i - 1); break; } } }
+    var piove = (c.precipitation || 0) >= 0.1 || (m0 >= 0 && (m.precipitation[m0] || 0) >= 0.1) ||
+                (isPioggia(c.weather_code) && h.precipitation_probability[start] >= 50);
+    if(piove){
+      var fine = null;
+      for(i = start + 1; i < Math.min(start + 12, h.time.length); i++){ if((prec[i] || 0) < 0.1 && h.precipitation_probability[i] < 40){ fine = hhmm(h.time[i]); break; } }
+      return {ora: true, t: isNeve(c.weather_code) ? 'Sta nevicando' : 'Sta piovendo', s: fine ? 'dovrebbe smettere verso le ' + fine : 'anche nelle prossime ore'};
+    }
+    var quando = null;
+    if(m0 >= 0){ for(i = m0 + 1; i < m.time.length; i++){ if((m.precipitation[i] || 0) >= 0.1){ quando = m.time[i]; break; } } }
+    for(i = start; i < Math.min(start + 6, h.time.length); i++){
+      var p = h.precipitation_probability[i], q = prec[i] || 0, code = h.weather_code[i];
+      if((q >= 0.2 && p >= 30) || (p >= 60 && (isPioggia(code) || isNeve(code)))){
+        var t = quando && quando < h.time[i] ? quando : h.time[i], tot = 0, pmax = 0;
+        for(j = i; j < Math.min(i + 3, h.time.length); j++){ tot += prec[j] || 0; pmax = Math.max(pmax, h.precipitation_probability[j]); }
+        var nome = code >= 95 ? 'Temporale in arrivo' : isNeve(code) ? 'Neve in arrivo' : 'Pioggia in arrivo';
+        var min = minutiTra(nowL + ':00', t + ':00');
+        var tra = min <= 60 ? 'tra circa ' + Math.max(15, Math.round(min / 15) * 15) + ' minuti' : 'verso le ' + hhmm(t);
+        return {ora: false, t: '☂ ' + nome + ' ' + tra, s: 'probabilità ' + pmax + '%' + (tot >= 0.1 ? ' · circa ' + mm(tot) + ' mm' : '')};
+      }
+    }
+    return null;
+  }
+
+  /* ---- Consiglio per il lavoro (fuori, a piedi): dalle 6 alle 20, la sera guarda a domani ---- */
+  function consiglio(d, start, di, nowL){
+    var h = d.hourly, dl = d.daily, i, oraN = parseInt(nowL.substr(11, 2), 10), domani = oraN >= 19;
+    var giorno = domani ? dl.time[Math.min(di + 1, dl.time.length - 1)] : nowL.substr(0, 10);
+    var app = h.apparent_temperature || h.temperature_2m, raff = h.wind_gusts_10m || [], prec = h.precipitation || [];
+    var pMax = 0, pOra = '', tot = 0, aMin = 99, aMax = -99, tMin = 99, gMax = 0, neve = false, nebbia = false, temp = false, n = 0;
+    for(i = 0; i < h.time.length; i++){
+      var hh = parseInt(h.time[i].substr(11, 2), 10);
+      if(h.time[i].substr(0, 10) !== giorno || hh < 6 || hh > 20 || (!domani && i < start)) continue;
+      n++;
+      var p = h.precipitation_probability[i], code = h.weather_code[i];
+      if(p > pMax){ pMax = p; pOra = hhmm(h.time[i]); }
+      tot += prec[i] || 0;
+      aMin = Math.min(aMin, app[i]); aMax = Math.max(aMax, app[i]); tMin = Math.min(tMin, h.temperature_2m[i]);
+      gMax = Math.max(gMax, raff[i] || 0);
+      if(isNeve(code) && p >= 40) neve = true;
+      if(code === 45 || code === 48) nebbia = true;
+      if(code >= 95 && p >= 40) temp = true;
+    }
+    if(!n) return '';
+    var uv = (dl.uv_index_max || [])[domani ? Math.min(di + 1, dl.time.length - 1) : di] || 0, L = [];
+    if(pMax >= 50 || tot >= 1) L.push('porta l\'ombrello' + (pOra ? ' (pioggia verso le ' + pOra + ')' : ''));
+    else if(pMax >= 30) L.push('ombrello pieghevole nello zaino (' + pMax + '%)');
+    if(temp) L.push('possibili temporali');
+    if(aMin <= 0) L.push('copriti molto bene: guanti e berretto (percepita ' + r(aMin) + '°)');
+    else if(aMin <= 7) L.push('copriti bene (percepita fino a ' + r(aMin) + '°)');
+    else if(aMin <= 14) L.push('porta una giacca o una felpa');
+    if(aMax >= 30) L.push('fa caldo: porta acqua');
+    if(uv >= 6) L.push('crema solare e cappello');
+    if(gMax >= 50) L.push('vento forte, raffiche fino a ' + r(gMax) + ' km/h');
+    if(neve) L.push('neve: scarpe con buona suola');
+    else if(tMin <= 1 && (tot > 0 || pMax >= 40)) L.push('attenzione al ghiaccio');
+    if(nebbia) L.push('nebbia: vestiti chiari per farti vedere');
+    if(!L.length) L.push('giornata tranquilla, niente ombrello');
+    var testo = L.join(' · ');
+    return '<b>Per il lavoro ' + (domani ? 'domani' : 'oggi') + ':</b> ' + testo.charAt(0).toUpperCase() + testo.substr(1);
+  }
+
+  /* ---- Radar pioggia a schermo intero: si alterna con il meteo (1 minuto meteo, 20 secondi radar) ---- */
+  var RZ = 7, radarF = [], radarHost = '', radarI = 0, radarOn = false, radarAnim = null, radarImgs = [], radarT = 0;
+  function caricaRadar(){
+    var x = new XMLHttpRequest();
+    x.open('GET', 'https://api.rainviewer.com/public/weather-maps.json?_=' + new Date().getTime(), true);
+    x.onreadystatechange = function(){
+      if(x.readyState !== 4 || x.status !== 200) return;
+      try{ var j = JSON.parse(x.responseText); radarHost = j.host; radarF = (j.radar.past || []).concat(j.radar.nowcast || []); }catch(e){ radarF = []; }
+    };
+    x.send();
+  }
+  function costruisciRadar(){
+    var W = window.innerWidth || 1280, H = window.innerHeight || 720;
+    var T = Math.round(Math.max(W / 1280, H / 720) * 384);      // piastrelle ingrandite 1,5x
+    var n = Math.pow(2, RZ), lat = place.lat * Math.PI / 180;
+    var px = (place.lon + 180) / 360 * n * T;
+    var py = (1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2 * n * T;
+    var ox = Math.round(W / 2 - px), oy = Math.round(H / 2 - py);
+    var x0 = Math.floor(-ox / T), x1 = Math.floor((W - ox) / T), y0 = Math.floor(-oy / T), y1 = Math.floor((H - oy) / T);
+    var html = '', tx, ty;
+    radarImgs = [];
+    for(ty = y0; ty <= y1; ty++){
+      for(tx = x0; tx <= x1; tx++){
+        if(ty < 0 || ty >= n) continue;
+        var wx = ((tx % n) + n) % n, st = 'left:' + (ox + tx * T) + 'px;top:' + (oy + ty * T) + 'px;width:' + T + 'px;height:' + T + 'px';
+        html += '<img src="https://tile.openstreetmap.org/' + RZ + '/' + wx + '/' + ty + '.png" style="' + st + '" alt="">';
+        html += '<img class="rv" data-x="' + wx + '" data-y="' + ty + '" style="' + st + ';opacity:.75" alt="">';
+      }
+    }
+    $('rtiles').innerHTML = html;
+    var all = $('rtiles').getElementsByTagName('img');
+    for(var k = 0; k < all.length; k++){ if(all[k].className === 'rv') radarImgs.push(all[k]); }
+    $('rpunto').style.left = Math.round(W / 2) + 'px'; $('rpunto').style.top = Math.round(H / 2) + 'px';
+  }
+  function frameRadar(){
+    var f = radarF[radarI]; if(!f) return;
+    for(var k = 0; k < radarImgs.length; k++){
+      var im = radarImgs[k];
+      im.src = radarHost + f.path + '/256/' + RZ + '/' + im.getAttribute('data-x') + '/' + im.getAttribute('data-y') + '/2/1_1.png';
+    }
+    var t = new Date(f.time * 1000), min = Math.round((f.time * 1000 - new Date().getTime()) / 60000);
+    $('rora').innerHTML = 'ore ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + (min > 5 ? ' · previsione' : min < -12 ? ' · ' + (-min) + ' minuti fa' : ' · adesso') + ' &nbsp;·&nbsp; ultime 2 ore';
+    $('rbar').style.width = ((radarI + 1) / radarF.length * 100) + '%';
+  }
+  function mostraRadar(si){
+    radarOn = si; clearTimeout(radarAnim);
+    $('radar').style.display = si ? 'block' : 'none';
+    if(!si) return;
+    costruisciRadar(); radarI = 0;
+    (function passo(){
+      frameRadar();
+      var ultimo = radarI === radarF.length - 1;
+      radarAnim = setTimeout(function(){ radarI = (radarI + 1) % radarF.length; passo(); }, ultimo ? 2500 : 700);
+    })();
+  }
+  setInterval(function(){
+    radarT++;
+    if(!radarOn && radarT >= 60 && radarF.length && lastData){ radarT = 0; mostraRadar(true); }
+    else if(radarOn && radarT >= 20){ radarT = 0; mostraRadar(false); }
+  }, 1000);
+  caricaRadar();
+  setInterval(caricaRadar, 10 * 60 * 1000);
 
   /* Se qualcosa non ci sta in altezza, rimpicciolisco tutto quanto basta */
   function adatta(){
@@ -391,6 +562,8 @@ h2{font-size:1.25rem;color:#c6d4e0;text-transform:uppercase;letter-spacing:.15re
       if(f){ try{ f.call(el); }catch(err){} }
     }else if(k === 82 || k === 403){ // R oppure tasto rosso: aggiorna subito
       carica();
+    }else if(k === 77 || k === 404){ // M oppure tasto verde: mostra o nascondi il radar
+      if(radarF.length){ radarT = 0; mostraRadar(!radarOn); }
     }
   };
 

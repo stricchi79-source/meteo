@@ -175,6 +175,56 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .al0{background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:9px 13px}
 .al0 b{font-size:13px;font-weight:500;color:var(--fg)}
 .al0 .ai{font-size:15px;color:#2e9d57}
+
+/* Vento nella previsione ora per ora */
+.hour .w{font:500 12px var(--f);color:var(--muted);margin-top:2px;white-space:nowrap}
+.hour .d{font-size:18px}
+.hour .p{font-size:13px}
+
+/* Avviso pioggia in arrivo (in alto, grande) */
+.rainwarn{display:flex;gap:14px;align-items:center;background:var(--rain);color:#fff;border-radius:18px;padding:16px 18px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+.rainwarn .ri{font-size:40px;line-height:1}
+.rainwarn b{display:block;font:700 23px/1.2 var(--f)}
+.rainwarn small{display:block;font:500 16px/1.35 var(--f);opacity:.95;margin-top:3px}
+.rainwarn.now{background:#1d5c99}
+
+/* Consiglio per il lavoro */
+.advice{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.advice h3{margin:0 0 8px;font:600 14px var(--f);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.advice ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.advice li{display:flex;gap:12px;align-items:flex-start;font:500 19px/1.3 var(--f)}
+.advice li span{font-size:26px;line-height:1.05;flex:none;width:30px;text-align:center}
+.advice li small{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+
+/* Percepita, alba e tramonto più grandi */
+.cell.hi{grid-column:span 3;display:flex;justify-content:space-between;align-items:baseline}
+.cell.hi .v{font-size:26px;margin:0}
+.cell.hi .k{font-size:12px}
+.sunbig{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.sunbig div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center}
+.sunbig span{font-size:26px}
+.sunbig b{display:block;font:600 22px/1.1 var(--f)}
+.sunbig small{color:var(--muted);font-size:13px}
+
+/* Radar pioggia */
+.radar{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+#map{height:340px;background:#cfd8e0}
+.rctl{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.rctl button{width:52px;height:52px;border-radius:14px;border:1px solid var(--line);background:var(--bg);font-size:22px;cursor:pointer;flex:none}
+.rctl .rt{flex:1;min-width:0}
+.rctl .rt b{display:block;font:600 20px/1.1 var(--f)}
+.rctl .rt small{color:var(--muted);font-size:13px}
+.rbar{height:6px;background:var(--line);margin:0 12px 10px;border-radius:3px;overflow:hidden}
+.rbar i{display:block;height:100%;background:var(--rain);width:0}
+.rnext{padding:0 14px 14px;font:500 17px/1.35 var(--f)}
+.rnext small{display:block;color:var(--muted);font-size:13px;margin-top:4px}
+.leaflet-container{font:12px var(--f)}
+
+/* Allerte ufficiali */
+.pcbtn{display:flex;gap:12px;align-items:center;background:var(--panel);border:2px solid #d32f2f;border-radius:18px;padding:14px 16px;color:var(--fg);text-decoration:none}
+.pcbtn span{font-size:30px}
+.pcbtn b{display:block;font:700 19px/1.2 var(--f)}
+.pcbtn small{display:block;color:var(--muted);font-size:14px;margin-top:3px;line-height:1.35}
 </style>
 </head>
 <body>
@@ -186,6 +236,20 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   </div>
   <div class="install" id="installBar" hidden><img src="icons/icon-192.png" alt=""><span>Installa Meteo sul telefono</span><button type="button" id="installBtn">Installa</button></div>
   <div id="content"><div class="msg">Caricamento…</div></div>
+  <h2 style="margin-top:18px">Radar pioggia</h2>
+  <section class="radar" id="radarBox">
+    <div id="map" role="img" aria-label="Mappa radar della pioggia"></div>
+    <div class="rctl">
+      <button type="button" id="rPlay" aria-label="Ferma o avvia l'animazione">⏸</button>
+      <div class="rt"><b id="rTime">Radar…</b><small id="rInfo">ultime 2 ore, ogni 10 minuti</small></div>
+      <button type="button" id="rGps" aria-label="Centra sulla mia posizione">📍</button>
+    </div>
+    <div class="rbar"><i id="rBar"></i></div>
+    <div class="rnext" id="rNext"></div>
+  </section>
+  <a class="pcbtn" style="margin-top:16px" href="https://rischi.protezionecivile.gov.it/it/meteo-idro/allertamento/" target="_blank" rel="noopener">
+    <span>⚠️</span><span><b>Allerte ufficiali · Protezione Civile</b><small>Questa app dà solo indicazioni. Per le allerte vere segui sempre quelle ufficiali della Protezione Civile e del tuo Comune.</small></span>
+  </a>
   <div class="foot">Dati <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · allerte Protezione Civile e MeteoAlarm (CC BY 4.0) · tocca il nome per cambiare località</div>
 </main>
 
@@ -321,7 +385,8 @@ async function load(){
   $('#refreshBtn').classList.add('spin');
   const url = 'https://api.open-meteo.com/v1/forecast?latitude='+place.lat+'&longitude='+place.lon+
     '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m'+
-    '&hourly=temperature_2m,precipitation_probability,weather_code,is_day'+
+    '&hourly=temperature_2m,precipitation_probability,weather_code,is_day,precipitation,apparent_temperature,wind_speed_10m,wind_gusts_10m'+
+    '&minutely_15=precipitation&forecast_minutely_15=12'+
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max'+
     '&timezone=auto&forecast_days=7';
   try{
@@ -361,7 +426,8 @@ function render(d, stale){
   let hours = '';
   for(let i=nowIdx;i<end;i++){
     const p = h.precipitation_probability[i];
-    hours += `<div class="hour${i===nowIdx?' now':''}"><div class="t">${i===nowIdx?'Ora':hhmm(h.time[i])}</div>${icon(h.weather_code[i], h.is_day[i]===1)}<div class="d">${r(h.temperature_2m[i])}°</div><div class="p">${p>=10?p+'%':''}</div></div>`;
+    const ws = h.wind_speed_10m ? `<div class="w" title="vento km/h">💨${r(h.wind_speed_10m[i])}</div>` : '';
+    hours += `<div class="hour${i===nowIdx?' now':''}"><div class="t">${i===nowIdx?'Ora':hhmm(h.time[i])}</div>${icon(h.weather_code[i], h.is_day[i]===1)}<div class="d">${r(h.temperature_2m[i])}°</div><div class="p">${p>=10?'💧'+p+'%':''}</div>${ws}</div>`;
   }
   chartData = {times:h.time.slice(nowIdx,end), temps:h.temperature_2m.slice(nowIdx,end)};
   // giorno/notte da alba e tramonto del giorno corrente
@@ -382,8 +448,12 @@ function render(d, stale){
   const ph = fotoDelMomento();
   const al = htmlAllerte(nowL.slice(0,10));
   const arrow = `<svg class="compass" viewBox="0 0 24 24" style="transform:rotate(${c.wind_direction_10m+180}deg)" fill="currentColor"><path d="M12 2l5 16-5-3-5 3z"/></svg>`;
+  const pioggia = avvisoPioggia(d, nowIdx, nowL);
+  const consigli = consiglioLavoro(d, nowIdx, di);
+  aggiornaRadarTesto(d, nowL);
   $('#content').innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
+    ${pioggia}
     ${al.attive}
     <section class="hero${ph?' photo':''}"${ph?` style="background-image:url('${ph.f}')"`:''}>
       <div>
@@ -394,7 +464,9 @@ function render(d, stale){
       <div class="big-ico">${icon(c.weather_code, c.is_day===1)}</div>
       ${ph?`<div class="credit">${ph.c} · Wikimedia Commons</div>`:''}
     </section>
+    ${consigli}
     <section class="grid">
+      <div class="cell hi"><div class="k">Temperatura percepita</div><div class="v">${r(c.apparent_temperature)}<small>°C</small></div></div>
       <div class="cell"><div class="k">Vento</div><div class="v">${arrow}${r(c.wind_speed_10m)}<small>km/h</small></div></div>
       <div class="cell"><div class="k">Raffiche</div><div class="v">${r(c.wind_gusts_10m)}<small>km/h ${dir(c.wind_direction_10m)}</small></div></div>
       <div class="cell"><div class="k">Umidità</div><div class="v">${r(c.relative_humidity_2m)}<small>%</small></div></div>
@@ -405,7 +477,7 @@ function render(d, stale){
       <div class="cell"><div class="k">Prob. pioggia</div><div class="v">${dl.precipitation_probability_max[0]}<small>%</small></div></div>
       <div class="cell"><div class="k">UV max</div><div class="v">${dl.uv_index_max[0].toFixed(0)}<small>${uvLabel(dl.uv_index_max[0])}</small></div></div>
     </section>
-    <div class="sun"><span>Alba ${hhmm(dl.sunrise[0])}</span><span>Tramonto ${hhmm(dl.sunset[0])}</span></div>
+    <div class="sunbig"><div><span>🌅</span><div><small>Alba</small><b>${hhmm(dl.sunrise[0])}</b></div></div><div><span>🌇</span><div><small>Tramonto</small><b>${hhmm(dl.sunset[0])}</b></div></div></div>
     ${al.nessuna}
     <h2>Prossime 24 ore</h2>
     <div class="chart" id="tchart"></div>
@@ -414,6 +486,156 @@ function render(d, stale){
     <div class="days">${days}</div>
   </div>`;
   drawChart();
+}
+
+/* ---- Avviso "pioggia in arrivo" (prossime 6 ore) ---- */
+const isNeve = c => (c>=71&&c<=77)||c===85||c===86;
+const isPioggia = c => (c>=51&&c<=67)||(c>=80&&c<=82)||c>=95;
+const mm = v => v.toFixed(1).replace('.',',');
+function avvisoPioggia(d, nowIdx, nowL){
+  const h = d.hourly, c = d.current, m = d.minutely_15;
+  const prec = h.precipitation || [];
+  // sta già piovendo?
+  let m0 = -1;
+  if(m && m.time){ m0 = m.time.findIndex(t => t > nowL); m0 = m0 < 0 ? -1 : Math.max(0, m0-1); }
+  const oraPiove = (c.precipitation||0) >= 0.1 || (m0>=0 && (m.precipitation[m0]||0) >= 0.1);
+  if(oraPiove){
+    // quando smette?
+    let fine = null;
+    for(let i=nowIdx+1;i<Math.min(nowIdx+12,h.time.length);i++){ if((prec[i]||0) < 0.1 && h.precipitation_probability[i] < 40){ fine = hhmm(h.time[i]); break; } }
+    const neve = isNeve(c.weather_code);
+    return `<div class="rainwarn now"><span class="ri">${neve?'❄️':'🌧️'}</span><span><b>${neve?'Sta nevicando':'Sta piovendo'}</b><small>${fine ? 'Dovrebbe smettere verso le '+fine : 'Continua anche nelle prossime ore'}</small></span></div>`;
+  }
+  // primo quarto d'ora con pioggia nelle prossime 3 ore (più preciso dell'ora)
+  let quando = null;
+  if(m0>=0){ for(let i=m0+1;i<m.time.length;i++){ if((m.precipitation[i]||0) >= 0.1){ quando = m.time[i]; break; } } }
+  // poi le prossime 6 ore
+  for(let i=nowIdx;i<Math.min(nowIdx+6,h.time.length);i++){
+    const p = h.precipitation_probability[i], q = prec[i]||0, code = h.weather_code[i];
+    if((q >= 0.2 && p >= 30) || (p >= 60 && (isPioggia(code)||isNeve(code)))){
+      const t = quando && quando < h.time[i] ? quando : h.time[i];
+      let tot = 0, pmax = 0;
+      for(let j=i;j<Math.min(i+3,h.time.length);j++){ tot += prec[j]||0; pmax = Math.max(pmax, h.precipitation_probability[j]); }
+      const tipo = code>=95 ? ['⛈️','Temporale in arrivo'] : isNeve(code) ? ['❄️','Neve in arrivo'] : ['☔','Pioggia in arrivo'];
+      const min = Math.round((new Date(t) - new Date(nowL))/60000);
+      const tra = min <= 60 ? 'tra circa '+Math.max(15, Math.round(min/15)*15)+' minuti' : 'verso le '+hhmm(t);
+      return `<div class="rainwarn"><span class="ri">${tipo[0]}</span><span><b>${tipo[1]} ${tra}</b><small>Probabilità ${pmax}%${tot>=0.1?' · circa '+mm(tot)+' mm nelle 3 ore':''}</small></span></div>`;
+    }
+  }
+  return '';
+}
+
+/* ---- Consiglio per chi lavora fuori e va a piedi ---- */
+function consiglioLavoro(d, nowIdx, di){
+  const h = d.hourly, dl = d.daily;
+  // la giornata di lavoro: dalle 6 alle 20 di oggi (da adesso); dopo le 19 si guarda a domani
+  const nowL = localNow(d), oraN = +nowL.slice(11,13);
+  const domani = oraN >= 19;
+  const giorno = domani ? dl.time[Math.min(di+1, dl.time.length-1)] : nowL.slice(0,10);
+  const idx = [];
+  h.time.forEach((t,i) => { if(t.slice(0,10)===giorno && +t.slice(11,13)>=6 && +t.slice(11,13)<=20 && (domani || i>=nowIdx)) idx.push(i); });
+  if(!idx.length) return '';
+  const app = h.apparent_temperature || h.temperature_2m, raff = h.wind_gusts_10m || [], prec = h.precipitation || [];
+  let pMax = 0, pOra = null, tot = 0, aMin = 99, aMax = -99, tMin = 99, gMax = 0, neve = false, nebbia = false, temp = false;
+  for(const i of idx){
+    const p = h.precipitation_probability[i], code = h.weather_code[i];
+    if(p > pMax){ pMax = p; pOra = h.time[i]; }
+    tot += prec[i]||0;
+    aMin = Math.min(aMin, app[i]); aMax = Math.max(aMax, app[i]); tMin = Math.min(tMin, h.temperature_2m[i]);
+    gMax = Math.max(gMax, raff[i]||0);
+    if(isNeve(code) && p>=40) neve = true;
+    if(code===45||code===48) nebbia = true;
+    if(code>=95 && p>=40) temp = true;
+  }
+  const uv = dl.uv_index_max[domani ? Math.min(di+1, dl.time.length-1) : di] || 0;
+  const L = [];
+  if(pMax >= 50 || tot >= 1) L.push(['☂️','Porta l\'ombrello', 'Pioggia probabile ('+pMax+'%)'+(pOra?' verso le '+hhmm(pOra):'')+(gMax>=40?' · con questo vento meglio una giacca impermeabile col cappuccio':'')]);
+  else if(pMax >= 30) L.push(['🌂','Tieni un ombrello pieghevole nello zaino', 'Qualche possibilità di pioggia ('+pMax+'%)']);
+  if(temp) L.push(['⛈️','Possibili temporali', 'Se senti tuoni ripara al chiuso e stai lontano dagli alberi isolati']);
+  if(aMin <= 0) L.push(['🧤','Copriti molto bene', 'Guanti, berretto e sciarpa: percepita fino a '+r(aMin)+'°']);
+  else if(aMin <= 7) L.push(['🧥','Copriti bene', 'Giacca pesante: percepita fino a '+r(aMin)+'°']);
+  else if(aMin <= 14) L.push(['🧥','Porta una giacca o una felpa', 'Percepita fino a '+r(aMin)+'°']);
+  if(aMax >= 30) L.push(['💧','Fa caldo: porta acqua', 'Percepita fino a '+r(aMax)+'°, cerca l\'ombra nelle ore centrali']);
+  if(uv >= 6) L.push(['🧴','Crema solare e cappello', 'Indice UV '+r(uv)+' ('+uvLabel(uv)+')']);
+  if(gMax >= 50) L.push(['💨','Vento forte', 'Raffiche fino a '+r(gMax)+' km/h: attenzione a rami e oggetti che volano']);
+  if(neve) L.push(['❄️','Neve', 'Scarpe con una buona suola, cammina con calma']);
+  else if(tMin <= 1 && (tot > 0 || pMax >= 40)) L.push(['⚠️','Possibile ghiaccio', 'Marciapiedi scivolosi: cammina con attenzione']);
+  if(nebbia) L.push(['🌫️','Nebbia', 'Vestiti chiari o un giubbotto catarifrangente per farti vedere dalle auto']);
+  if(!L.length) L.push(['😎','Giornata tranquilla', 'Niente ombrello, vestiti comodo']);
+  const da = hhmm(h.time[idx[0]]), a = hhmm(h.time[idx[idx.length-1]]);
+  return `<section class="advice"><h3>👷 Consiglio per il lavoro · ${domani?'domani':'oggi'} ${da}-${a}</h3><ul>${
+    L.map(x=>`<li><span>${x[0]}</span><div>${x[1]}<small>${x[2]}</small></div></li>`).join('')}</ul></section>`;
+}
+
+/* ---- Radar pioggia (RainViewer, ultime 2 ore) su mappa OpenStreetMap ---- */
+const radar = {map:null, frames:[], layers:[], i:0, timer:null, play:true, marker:null, host:'', caricato:0};
+function caricaLeaflet(){
+  if(window.L) return Promise.resolve();
+  return new Promise((ok, ko) => {
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = ok; s.onerror = ko; document.head.appendChild(s);
+  });
+}
+async function avviaRadar(){
+  if(radar.map || !place) return;
+  try{ await caricaLeaflet(); }catch(e){ $('#rTime').textContent = 'Radar non disponibile (serve internet)'; return; }
+  radar.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([place.lat, place.lon], 8);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:12, attribution:'© OpenStreetMap'}).addTo(radar.map);
+  radar.marker = L.circleMarker([place.lat, place.lon], {radius:7, color:'#fff', weight:3, fillColor:'#d0702a', fillOpacity:1}).addTo(radar.map);
+  await aggiornaFrame();
+  setInterval(() => { if(!document.hidden) aggiornaFrame(); }, 600000);
+}
+async function aggiornaFrame(){
+  try{
+    const j = await (await fetch('https://api.rainviewer.com/public/weather-maps.json', {cache:'no-cache'})).json();
+    radar.host = j.host;
+    const frames = (j.radar.past||[]).concat(j.radar.nowcast||[]);
+    radar.layers.forEach(l => radar.map.removeLayer(l));
+    radar.frames = frames; radar.nowcast = (j.radar.nowcast||[]).length;
+    radar.layers = frames.map(f => L.tileLayer(j.host+f.path+'/256/{z}/{x}/{y}/2/1_1.png',
+      {opacity:0, maxNativeZoom:7, maxZoom:12, attribution:'Radar <a href="https://www.rainviewer.com" target="_blank">RainViewer</a>'}).addTo(radar.map));
+    radar.i = frames.length-1; mostraFrame();
+    if(radar.play) animaRadar();
+  }catch(e){ $('#rTime').textContent = 'Radar non raggiungibile'; }
+}
+function mostraFrame(){
+  radar.layers.forEach((l,k) => l.setOpacity(k===radar.i ? .75 : 0));
+  const f = radar.frames[radar.i]; if(!f) return;
+  const t = new Date(f.time*1000), min = Math.round((f.time*1000 - Date.now())/60000);
+  $('#rTime').textContent = t.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}) + (min > 5 ? ' · previsione' : min < -12 ? ' · '+(-min)+' min fa' : ' · adesso');
+  $('#rBar').style.width = ((radar.i+1)/radar.frames.length*100)+'%';
+}
+function animaRadar(){
+  clearTimeout(radar.timer);
+  if(!radar.play || !radar.frames.length) return;
+  const ultimo = radar.i === radar.frames.length-1;
+  radar.timer = setTimeout(() => { radar.i = (radar.i+1) % radar.frames.length; mostraFrame(); animaRadar(); }, ultimo ? 1800 : 550);
+}
+function centraRadar(lat, lon){
+  if(!radar.map) return;
+  radar.map.setView([lat, lon], Math.max(8, radar.map.getZoom()));
+  radar.marker.setLatLng([lat, lon]);
+}
+$('#rPlay').onclick = () => { radar.play = !radar.play; $('#rPlay').textContent = radar.play ? '⏸' : '▶'; animaRadar(); };
+$('#rGps').onclick = () => {
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p => centraRadar(p.coords.latitude, p.coords.longitude),
+    () => centraRadar(place.lat, place.lon), {timeout:10000, maximumAge:600000});
+};
+if('IntersectionObserver' in window){
+  const io = new IntersectionObserver(e => { if(e.some(x=>x.isIntersecting)){ io.disconnect(); avviaRadar(); } }, {rootMargin:'200px'});
+  io.observe($('#radarBox'));
+} else avviaRadar();
+/* Prossimi 30 minuti: RainViewer non dà più la previsione, la prendo da Open-Meteo (dati ogni 15 minuti) */
+function aggiornaRadarTesto(d, nowL){
+  const m = d.minutely_15, el = $('#rNext');
+  if(!m || !m.time){ el.innerHTML = ''; return; }
+  let k = m.time.findIndex(t => t > nowL); if(k < 0){ el.innerHTML = ''; return; }
+  const tot = (m.precipitation[k]||0) + (m.precipitation[k+1]||0);
+  const txt = tot < 0.1 ? '☀️ Prossimi 30 minuti: niente pioggia prevista' : tot < 1 ? '🌦️ Prossimi 30 minuti: pioggia debole ('+mm(tot)+' mm)' : '🌧️ Prossimi 30 minuti: pioggia ('+mm(tot)+' mm)';
+  el.innerHTML = txt + '<small>Il radar mostra la pioggia delle ultime 2 ore; la previsione dei prossimi 30 minuti è di Open-Meteo.</small>';
 }
 
 /* ---- Grafico temperatura 24 ore (linea morbida monotona) ---- */
@@ -579,7 +801,7 @@ setInterval(()=>{ if(lastData && !document.hidden && localNow(lastData).slice(0,
 const dlg = $('#dlg');
 function openDialog(){ renderSaved(); $('#results').innerHTML=''; $('#q').value=''; if(!dlg.open) dlg.showModal(); setTimeout(()=>$('#q').focus(),50); }
 function choose(p){
-  place = p; store.set('meteo.place', p);
+  place = p; store.set('meteo.place', p); centraRadar(p.lat, p.lon);
   if(!saved.some(s=>s.id===p.id)){ saved.unshift(p); saved = saved.slice(0,8); store.set('meteo.saved', saved); }
   dlg.close(); load();
 }

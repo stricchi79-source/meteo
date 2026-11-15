@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meteo TV</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+<!--
+  Versione per televisore (browser VIDAA e simili).
+  Scritta apposta in JavaScript "vecchio stile" (ES5: niente => , niente `...`, niente fetch)
+  e con impaginazione a tabelle, così funziona anche sui browser dei TV più semplici.
+  Si aggiorna da sola ogni 15 minuti.
+  Località diversa: aggiungi all'indirizzo ?lat=45.07&lon=7.69&nome=Torino
+-->
+<style>
+html,body{margin:0;padding:0;height:100%;overflow:hidden}
+body{background:#0b1622;color:#f2f6fa;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.2;cursor:none}
+body.giorno{background:#0f2840}
+#app{position:absolute;top:0;left:0;right:0;bottom:0;padding:1.2rem 2rem;box-sizing:border-box;-webkit-box-sizing:border-box}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+td{padding:0;vertical-align:middle}
+.rain{color:#6cc0ff}
+.warm{color:#ffb066}
+
+/* Intestazione */
+#place{font-size:2.6rem;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#upd{font-size:1.3rem;color:#9fb3c6;margin-top:.2rem}
+#clock{font-size:3.4rem;font-weight:bold;text-align:right;line-height:1}
+#date{font-size:1.4rem;color:#9fb3c6;text-align:right;margin-top:.2rem}
+
+/* Adesso */
+.hero{margin-top:.6rem}
+.bigico{width:8rem;height:8rem;display:block}
+#temp{font-size:8rem;font-weight:bold;line-height:1}
+#temp sup{font-size:3rem;color:#9fb3c6;vertical-align:top;position:relative;top:.6rem}
+#cond{font-size:2.3rem;margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sub{font-size:1.6rem;color:#9fb3c6;margin-top:.3rem;white-space:nowrap}
+.cell{background:#16283a;border-radius:.8rem;padding:.6rem 1rem;margin:.3rem}
+.k{font-size:1.15rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.1rem}
+.v{font-size:2.5rem;font-weight:bold;margin-top:.15rem;white-space:nowrap;overflow:hidden}
+.v small{font-size:1.3rem;font-weight:normal;color:#9fb3c6;margin-left:.3rem}
+
+/* Ore e giorni */
+h2{font-size:1.25rem;color:#9fb3c6;text-transform:uppercase;letter-spacing:.15rem;margin:.9rem 0 .4rem;font-weight:bold}
+.strip td{text-align:center}
+.box{background:#16283a;border-radius:.8rem;padding:.4rem .2rem;margin:0 .25rem}
+.box.now{background:#1f4466}
+.t{font-size:1.4rem;color:#9fb3c6}
+.box.now .t{color:#ffffff;font-weight:bold}
+.ico{width:3.3rem;height:3.3rem;display:block;margin:.15rem auto}
+.d{font-size:2.2rem;font-weight:bold}
+.d .lo{color:#9fb3c6;font-weight:normal}
+.p{font-size:1.3rem;color:#6cc0ff;height:1.6rem;line-height:1.6rem}
+
+#msg{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:3rem;color:#9fb3c6}
+</style>
+</head>
+<body>
+<div id="app" style="display:none"><div id="inner">
+  <table><tr>
+    <td style="width:60%"><div id="place">Meteo</div><div id="upd">&nbsp;</div></td>
+    <td><div id="clock">--:--</div><div id="date">&nbsp;</div></td>
+  </tr></table>
+
+  <table class="hero"><tr>
+    <td style="width:42%">
+      <table><tr>
+        <td style="width:9rem"><div id="bigico"></div></td>
+        <td><div id="temp">--</div></td>
+      </tr></table>
+      <div id="cond">&nbsp;</div>
+      <div id="sub">&nbsp;</div>
+    </td>
+    <td>
+      <div id="cells"></div>
+    </td>
+  </tr></table>
+
+  <h2>Prossime ore</h2>
+  <div id="hours"></div>
+
+  <h2>Prossimi giorni</h2>
+  <div id="days"></div>
+</div></div>
+<div id="msg">Caricamento del meteo…</div>
+
+<script>
+(function(){
+  var AGGIORNA_MS = 15 * 60 * 1000;      // ogni 15 minuti
+  var RIPROVA_MS  = 2 * 60 * 1000;       // se manca la rete riprova dopo 2 minuti
+
+  /* ---- Località: predefinita oppure dall'indirizzo (?lat=..&lon=..&nome=..) ---- */
+  var place = {name:'Castelnuovo Bormida', lat:44.742, lon:8.551};
+  function param(k){
+    var m = new RegExp('[?&]' + k + '=([^&#]*)').exec(location.search);
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : null;
+  }
+  if(param('lat') && param('lon')){
+    place = {name: param('nome') || 'Meteo', lat: parseFloat(param('lat')), lon: parseFloat(param('lon'))};
+  }
+
+  function $(id){ return document.getElementById(id); }
+
+  /* ---- Dimensione delle scritte: tutto si adatta allo schermo (pensato per 1280x720) ---- */
+  function scala(){
+    var w = window.innerWidth || document.documentElement.clientWidth || 1280;
+    var h = window.innerHeight || document.documentElement.clientHeight || 720;
+    var s = Math.min(w / 1280, h / 720) * 16;
+    document.documentElement.style.fontSize = s.toFixed(2) + 'px';
+  }
+  scala();
+  window.onresize = function(){ if(lastData) adatta(); else scala(); };
+
+  /* ---- Icone ---- */
+  var SUN = '#ffb347', GREY = '#b9c7d4', RAIN = '#6cc0ff';
+  var parts = {
+    sun: '<g stroke="'+SUN+'"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g>',
+    moon: '<path stroke="'+GREY+'" d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
+    smallSun: '<g stroke="'+SUN+'"><circle cx="8" cy="8" r="3"/><path d="M8 2v1.3M2 8h1.3M3.8 3.8l.9.9M12.2 3.8l-.9.9"/></g>',
+    smallMoon: '<path stroke="'+GREY+'" d="M11 9.5A4.5 4.5 0 0 1 5.5 4a4.5 4.5 0 1 0 5.5 5.5z"/>',
+    cloud: '<path stroke="'+GREY+'" d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 18z"/>',
+    cloudHi: '<path stroke="'+GREY+'" d="M7 15h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 15z"/>',
+    rain: '<path stroke="'+RAIN+'" d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/>',
+    drizzle: '<path stroke="'+RAIN+'" d="M9 18.5v1.5M13 18.5v1.5M17 18.5v1.5"/>',
+    snow: '<path stroke="#ffffff" stroke-width="2.4" d="M8 19v.1M12 20.5v.1M16 19v.1M10 22v.1M14 22v.1"/>',
+    bolt: '<path stroke="'+SUN+'" d="M12.5 15l-2 4h3l-2 4"/>',
+    fog: '<path stroke="'+GREY+'" d="M4 14h16M6 17.5h12M8 21h8"/>'
+  };
+  function icon(code, day, cls){
+    var g;
+    if(code === 0) g = day ? parts.sun : parts.moon;
+    else if(code <= 2) g = (day ? parts.smallSun : parts.smallMoon) + parts.cloud;
+    else if(code === 3) g = parts.cloud;
+    else if(code === 45 || code === 48) g = parts.fog;
+    else if(code >= 51 && code <= 57) g = parts.cloudHi + parts.drizzle;
+    else if((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) g = parts.cloudHi + parts.rain;
+    else if((code >= 71 && code <= 77) || code === 85 || code === 86) g = parts.cloudHi + parts.snow;
+    else if(code >= 95) g = parts.cloudHi + parts.bolt;
+    else g = parts.cloud;
+    return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + g + '</svg>';
+  }
+  var WMO = {0:'Sereno',1:'Prevalentemente sereno',2:'Parzialmente nuvoloso',3:'Coperto',45:'Nebbia',48:'Nebbia con brina',
+    51:'Pioviggine debole',53:'Pioviggine',55:'Pioviggine intensa',56:'Pioviggine gelata',57:'Pioviggine gelata intensa',
+    61:'Pioggia debole',63:'Pioggia',65:'Pioggia forte',66:'Pioggia gelata',67:'Pioggia gelata forte',
+    71:'Neve debole',73:'Neve',75:'Neve forte',77:'Granelli di neve',80:'Rovesci deboli',81:'Rovesci',82:'Rovesci violenti',
+    85:'Rovesci di neve',86:'Rovesci di neve forti',95:'Temporale',96:'Temporale con grandine',99:'Temporale con grandine forte'};
+  var DIRS = ['N','NE','E','SE','S','SO','O','NO'];
+  var GIORNI = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  var GG = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+  var MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  function r(n){ return Math.round(n); }
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function hhmm(s){ return s.substr(11, 5); }
+  /* "2026-11-15" -> giorno della settimana (senza affidarsi al parser di date del browser) */
+  function weekday(s){
+    var d = new Date(Date.UTC(parseInt(s.substr(0,4),10), parseInt(s.substr(5,2),10)-1, parseInt(s.substr(8,2),10)));
+    return d.getUTCDay();
+  }
+  /* Ora attuale nel fuso della località, nel formato "YYYY-MM-DDTHH:MM" come i dati */
+  function localNow(off){
+    var d = new Date(new Date().getTime() + (off || 0) * 1000);
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
+  }
+
+  /* ---- Orologio (ora del televisore) ---- */
+  function orologio(){
+    var d = new Date();
+    $('clock').innerHTML = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    $('date').innerHTML = GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()];
+  }
+  orologio();
+  setInterval(orologio, 10000);
+
+  /* ---- Scarica i dati ---- */
+  var lastData = null, lastOk = 0, timer = null;
+  function memo(k, v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
+
+  function carica(){
+    clearTimeout(timer);
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + place.lat + '&longitude=' + place.lon +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
+      '&hourly=temperature_2m,precipitation_probability,weather_code,is_day' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset' +
+      '&timezone=auto&forecast_days=7';
+    var x = new XMLHttpRequest();
+    x.open('GET', url + '&_=' + new Date().getTime(), true);
+    try{ x.timeout = 30000; }catch(e){}
+    x.onreadystatechange = function(){
+      if(x.readyState !== 4) return;
+      var data = null;
+      if(x.status === 200){ try{ data = JSON.parse(x.responseText); }catch(e){ data = null; } }
+      if(data && data.current){
+        lastData = data; lastOk = new Date().getTime();
+        memo('meteo.tv', {d: data, t: lastOk});
+        try{ disegna(); }catch(e){ mostraErrore('Errore nel mostrare i dati'); }
+        timer = setTimeout(carica, AGGIORNA_MS);
+      }else{
+        if(lastData){ try{ disegna(); }catch(e){} }
+        else mostraErrore('Non riesco a scaricare il meteo. Riprovo tra 2 minuti…');
+        timer = setTimeout(carica, RIPROVA_MS);
+      }
+    };
+    x.ontimeout = function(){};   // gestito da onreadystatechange (status 0)
+    x.send();
+  }
+  function mostraErrore(t){ $('msg').innerHTML = t; $('msg').style.display = 'block'; }
+
+  /* ---- Disegna la pagina ---- */
+  function disegna(){
+    var d = lastData, c = d.current, h = d.hourly, dl = d.daily, i;
+    var nowL = localNow(d.utc_offset_seconds);
+
+    var di = 0;
+    for(i = 0; i < dl.time.length; i++){ if(dl.time[i] === nowL.substr(0,10)){ di = i; break; } }
+    var giorno = dl.sunrise && dl.sunrise[di] ? (nowL >= dl.sunrise[di] && nowL < dl.sunset[di]) : c.is_day === 1;
+    document.body.className = giorno ? 'giorno' : '';
+
+    $('place').innerHTML = place.name;
+    var min = r((new Date().getTime() - lastOk) / 60000);
+    var agg = 'Aggiornato alle ' + pad(new Date(lastOk).getHours()) + ':' + pad(new Date(lastOk).getMinutes()) + ' · si aggiorna da solo ogni 15 minuti · dati Open-Meteo';
+    if(min > 20) agg = 'Senza rete · dati delle ' + pad(new Date(lastOk).getHours()) + ':' + pad(new Date(lastOk).getMinutes());
+    $('upd').innerHTML = agg;
+
+    $('bigico').innerHTML = icon(c.weather_code, giorno, 'bigico');
+    $('temp').innerHTML = r(c.temperature_2m) + '<sup>°C</sup>';
+    $('cond').innerHTML = WMO[c.weather_code] || '&nbsp;';
+    $('sub').innerHTML = 'Percepita ' + r(c.apparent_temperature) + '° &nbsp;·&nbsp; <span class="warm">Max ' + r(dl.temperature_2m_max[di]) + '°</span> &nbsp; <span class="rain">Min ' + r(dl.temperature_2m_min[di]) + '°</span>';
+
+    function cell(k, v, u){ return '<td><div class="cell"><div class="k">' + k + '</div><div class="v">' + v + '<small>' + u + '</small></div></div></td>'; }
+    var pr = dl.precipitation_probability_max[di];
+    $('cells').innerHTML = '<table><tr>' +
+        cell('Vento', r(c.wind_speed_10m), 'km/h ' + DIRS[Math.round(c.wind_direction_10m / 45) % 8]) +
+        cell('Umidità', r(c.relative_humidity_2m), '%') +
+        cell('Pressione', r(c.pressure_msl), 'hPa') +
+      '</tr><tr>' +
+        cell('Pioggia oggi', pr == null ? '–' : pr, '% · ' + (dl.precipitation_sum[di] || 0).toFixed(1) + ' mm') +
+        cell('Alba', hhmm(dl.sunrise[di]), '') +
+        cell('Tramonto', hhmm(dl.sunset[di]), '') +
+      '</tr></table>';
+
+    /* Prossime ore: adesso e poi ogni 3 ore (8 caselle = 24 ore) */
+    var hourKey = nowL.substr(0,13) + ':00', start = -1;
+    for(i = 0; i < h.time.length; i++){ if(h.time[i] >= hourKey){ start = i; break; } }
+    if(start < 0) start = 0;
+    var row = '';
+    for(var n = 0; n < 8; n++){
+      i = start + n * 3;
+      if(i >= h.time.length) break;
+      var p = h.precipitation_probability[i];
+      row += '<td><div class="box' + (n === 0 ? ' now' : '') + '"><div class="t">' + (n === 0 ? 'Adesso' : hhmm(h.time[i])) + '</div>' +
+        icon(h.weather_code[i], h.is_day[i] === 1, 'ico') + '<div class="d">' + r(h.temperature_2m[i]) + '°</div>' +
+        '<div class="p">' + (p >= 10 ? '☂ ' + p + '%' : '') + '</div></div></td>';
+    }
+    $('hours').innerHTML = '<table class="strip"><tr>' + row + '</tr></table>';
+
+    /* Prossimi giorni */
+    row = '';
+    for(i = di; i < dl.time.length && i < di + 7; i++){
+      var nome = i === di ? 'Oggi' : i === di + 1 ? 'Domani' : GG[weekday(dl.time[i])] + ' ' + parseInt(dl.time[i].substr(8,2), 10);
+      var pp = dl.precipitation_probability_max[i];
+      row += '<td><div class="box"><div class="t">' + nome + '</div>' + icon(dl.weather_code[i], true, 'ico') +
+        '<div class="d">' + r(dl.temperature_2m_max[i]) + '° <span class="lo">' + r(dl.temperature_2m_min[i]) + '°</span></div>' +
+        '<div class="p">' + (pp >= 10 ? '☂ ' + pp + '%' : '') + '</div></div></td>';
+    }
+    $('days').innerHTML = '<table class="strip"><tr>' + row + '</tr></table>';
+
+    $('msg').style.display = 'none';
+    $('app').style.display = 'block';
+    adatta();
+  }
+
+  /* Se qualcosa non ci sta in altezza, rimpicciolisco tutto quanto basta */
+  function adatta(){
+    scala();
+    var h = window.innerHeight || document.documentElement.clientHeight || 720;
+    var fs = parseFloat(document.documentElement.style.fontSize);
+    var alto = $('inner').offsetHeight + 2.4 * fs;
+    if(alto > h){ document.documentElement.style.fontSize = (fs * h / alto * 0.98).toFixed(2) + 'px'; }
+  }
+
+  /* Mentre è acceso, ogni minuto ridisegna (cambio d'ora, "senza rete"); il download resta ogni 15 minuti */
+  setInterval(function(){ if(lastData){ try{ disegna(); }catch(e){} } }, 60000);
+
+  /* Una volta al giorno ricarica la pagina intera (prende anche eventuali nuove versioni) */
+  setTimeout(function(){ location.reload(); }, 24 * 60 * 60 * 1000);
+
+  /* Tasto OK / Invio del telecomando: prova a mettere a schermo intero */
+  document.onkeydown = function(e){
+    e = e || window.event;
+    var k = e.keyCode;
+    if(k === 13){
+      var el = document.documentElement;
+      var f = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if(f){ try{ f.call(el); }catch(err){} }
+    }else if(k === 82 || k === 403){ // R oppure tasto rosso: aggiorna subito
+      carica();
+    }
+  };
+
+  /* Avvio: mostro subito gli ultimi dati salvati (se ci sono), poi scarico quelli nuovi */
+  var saved = memo('meteo.tv');
+  if(saved && saved.d && saved.d.current && new Date().getTime() - saved.t < 6 * 3600000){
+    lastData = saved.d; lastOk = saved.t;
+    try{ disegna(); }catch(e){}
+  }
+  carica();
+})();
+</script>
+</body>
+</html>

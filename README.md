@@ -108,3 +108,10 @@ Le visite fatte aprendo il file in locale o da `localhost` non vengono contate.
 
 - Dati meteo: [Open-Meteo](https://open-meteo.com) (licenza CC BY 4.0).
 - Carattere: Space Grotesk (licenza SIL OFL), ospitato nella cartella `fonts/`, quindi niente richieste a Google e funziona anche offline.
+
+## Versione TV
+
+`tv/index.html` è una versione a schermo intero per il televisore (browser VIDAA e simili):
+scritte grandi, impaginazione orizzontale, JavaScript semplice (ES5) per i browser più vecchi,
+aggiornamento automatico ogni 15 minuti. Indirizzo: https://stricchi79-source.github.io/meteo/tv/
+Per un'altra località: `tv/?lat=45.07&lon=7.69&nome=Torino`.

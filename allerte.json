@@ -24,15 +24,8 @@
    "tipo": "Wind",
    "evento": "Giallo Vento Allerta",
    "livello": 1,
-   "inizio": "2026-11-19T02:00:00+01:00",
-   "fine": "2026-11-20T01:59:00+01:00"
-  },
-  {
-   "tipo": "Wind",
-   "evento": "Giallo Vento Allerta",
-   "livello": 1,
-   "inizio": "2026-11-20T02:00:00+01:00",
-   "fine": "2026-11-20T23:59:00+01:00"
+   "inizio": "2026-11-19T10:00:00+01:00",
+   "fine": "2026-11-21T12:59:00+01:00"
   }
  ]
 }

@@ -22,27 +22,6 @@
  "meteoalarm": [
   {
    "tipo": "Wind",
-   "evento": "Arancione Vento Allerta",
-   "livello": 2,
-   "inizio": "2026-11-22T10:00:00+01:00",
-   "fine": "2026-11-23T00:59:00+01:00"
-  },
-  {
-   "tipo": "Rain",
-   "evento": "Giallo Pioggia Allerta",
-   "livello": 1,
-   "inizio": "2026-11-22T10:00:00+01:00",
-   "fine": "2026-11-23T00:59:00+01:00"
-  },
-  {
-   "tipo": "Snow-ice",
-   "evento": "Giallo Neve-ghiaccio Allerta",
-   "livello": 1,
-   "inizio": "2026-11-22T10:00:00+01:00",
-   "fine": "2026-11-23T00:59:00+01:00"
-  },
-  {
-   "tipo": "Wind",
    "evento": "Giallo Vento Allerta",
    "livello": 1,
    "inizio": "2026-11-23T01:00:00+01:00",

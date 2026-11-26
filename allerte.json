@@ -19,13 +19,5 @@
    }
   ]
  },
- "meteoalarm": [
-  {
-   "tipo": "Snow-ice",
-   "evento": "Giallo Neve-ghiaccio Allerta",
-   "livello": 1,
-   "inizio": "2026-11-25T09:00:00+01:00",
-   "fine": "2026-11-26T00:59:00+01:00"
-  }
- ]
+ "meteoalarm": []
 }
